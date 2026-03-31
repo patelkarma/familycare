@@ -7,13 +7,3 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "target/backend-0.0.1-SNAPSHOT.jar"]
-```
-
----
-
-**Step 3 — Push Dockerfile to GitHub**
-```
-cd D:\familycare
-git add .
-git commit -m "Add Dockerfile for Render deployment"
-git push origin main
