@@ -12,3 +12,4 @@ frontend/.env
 .vscode/settings.json
 .idea/
 *.iml
+backend/src/main/resources/application-local.properties
