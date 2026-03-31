@@ -13,3 +13,4 @@ frontend/.env
 .idea/
 *.iml
 backend/src/main/resources/application-local.properties
+backend/.env
