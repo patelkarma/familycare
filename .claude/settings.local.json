@@ -4,7 +4,17 @@
       "Bash(npm create:*)",
       "Bash(npm install:*)",
       "Bash(npx tailwindcss:*)",
-      "Bash(./mvnw spring-boot:run)"
+      "Bash(./mvnw spring-boot:run)",
+      "Bash(find /d/familycare/frontend/src -type f \\\\\\(-name *.jsx -o -name *.js -o -name *.tsx -o -name *.ts \\\\\\))",
+      "Bash(find D:/familycare/src -maxdepth 4 -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\))",
+      "Bash(cd:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(node -e \"require\\(''@hookform/resolvers/zod''\\)\")",
+      "Bash(npx vite:*)",
+      "Bash(xargs grep:*)",
+      "Bash(find D:/familycare/frontend/src/components -type d -name *)",
+      "Bash(mvn compile:*)",
+      "Bash(grep -n \"getFamilyOverview\\\\|getMemberDaily\\\\|getMyDaily\" /d/familycare/frontend/src/pages/*.jsx)"
     ]
   }
 }
