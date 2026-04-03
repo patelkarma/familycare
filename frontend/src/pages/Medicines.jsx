@@ -60,14 +60,18 @@ const Medicines = () => {
     refetchInterval: 60_000,
   });
 
-  // Build a map: medicineId -> { timingKey -> status }
+  // Build a map: medicineId -> { timingKey -> slot data }
   const doseStatusMap = {};
   const scheduleSlots = scheduleData?.data?.slots || [];
   scheduleSlots.forEach((slot) => {
     if (!doseStatusMap[slot.medicineId]) {
       doseStatusMap[slot.medicineId] = {};
     }
-    doseStatusMap[slot.medicineId][slot.timingKey] = slot.status;
+    doseStatusMap[slot.medicineId][slot.timingKey] = {
+      status: slot.status,
+      takenAt: slot.takenAt,
+      markedByName: slot.markedByName,
+    };
   });
 
   const deleteMutation = useMutation({

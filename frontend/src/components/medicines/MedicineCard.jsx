@@ -12,6 +12,7 @@ import {
   Trash2,
   Package,
   AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { medicinesApi } from '../../api/medicines.api';
@@ -174,35 +175,78 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
         </div>
       </div>
 
-      {/* Timing badges */}
+      {/* Timing badges with dose status */}
       {activeTimings.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {activeTimings.map(([key, time]) => {
-            const config = timingConfig[key];
-            if (!config) return null;
-            const Icon = config.icon;
-            const isNext = key === nextDose;
+        <div className="space-y-2 mb-4">
+          <div className="flex flex-wrap gap-2">
+            {activeTimings.map(([key, time]) => {
+              const config = timingConfig[key];
+              if (!config) return null;
+              const Icon = config.icon;
+              const isNext = key === nextDose;
+              const slotData = doseStatuses[key];
+              const status = slotData?.status;
 
-            const doseStatus = doseStatuses[key];
-            const dotColor = doseStatus ? doseStatusDot[doseStatus] : null;
+              const statusStyles = {
+                TAKEN: 'bg-green-100 text-green-700 ring-green-200',
+                MISSED: 'bg-red-50 text-red-600 ring-red-200',
+                SKIPPED: 'bg-gray-100 text-gray-500 ring-gray-200',
+              };
+              const statusIcons = {
+                TAKEN: <Check className="w-3 h-3" />,
+                MISSED: <AlertTriangle className="w-3 h-3" />,
+                SKIPPED: <SkipForward className="w-3 h-3" />,
+              };
 
-            return (
-              <motion.div
-                key={key}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${config.color} ${
-                  isNext ? 'ring-2 ring-primary/30' : ''
-                }`}
-                animate={isNext ? { scale: [1, 1.03, 1] } : {}}
-                transition={isNext ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {config.label} {time}
-                {dotColor && (
-                  <span className={`w-2 h-2 rounded-full ${dotColor} ml-1`} />
-                )}
-              </motion.div>
-            );
-          })}
+              const badgeStyle = status && statusStyles[status]
+                ? `${statusStyles[status]} ring-1`
+                : `${config.color} ${isNext ? 'ring-2 ring-primary/30' : ''}`;
+
+              return (
+                <motion.div
+                  key={key}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${badgeStyle}`}
+                  animate={isNext && !status ? { scale: [1, 1.03, 1] } : {}}
+                  transition={isNext ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {config.label} {time}
+                  {status && statusIcons[status] && (
+                    <span className="ml-0.5">{statusIcons[status]}</span>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Dose action details */}
+          {Object.entries(doseStatuses).some(([, s]) => s?.status === 'TAKEN' && s?.takenAt) && (
+            <div className="space-y-1">
+              {activeTimings.map(([key]) => {
+                const slotData = doseStatuses[key];
+                if (!slotData || slotData.status !== 'TAKEN' || !slotData.takenAt) return null;
+                const timingLabel = timingConfig[key]?.label || key;
+                const takenTime = new Date(slotData.takenAt).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                return (
+                  <motion.p
+                    key={key}
+                    className="text-xs text-green-600 flex items-center gap-1"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Clock className="w-3 h-3" />
+                    {timingLabel} taken at {takenTime}
+                    {slotData.markedByName && (
+                      <span className="text-gray-400"> by {slotData.markedByName}</span>
+                    )}
+                  </motion.p>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
