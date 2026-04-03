@@ -5,7 +5,7 @@ import TopBar from './TopBar';
 import MobileNav from './MobileNav';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
-const caregiverOnlyPaths = ['/dashboard', '/family', '/medicines'];
+const caregiverOnlyPaths = ['/dashboard', '/family', '/medicines', '/doses-today'];
 
 const AppLayout = () => {
   const { user, isAuthenticated, loading } = useAuth();

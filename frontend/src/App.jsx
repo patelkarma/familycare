@@ -11,6 +11,7 @@ import Family from './pages/Family';
 import Profile from './pages/Profile';
 import Medicines from './pages/Medicines';
 import PatientMedicines from './pages/PatientMedicines';
+import DosesToday from './pages/DosesToday';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ function App() {
               <Route path="/family" element={<Family />} />
               <Route path="/medicines" element={<Medicines />} />
               <Route path="/my-medicines" element={<PatientMedicines />} />
+              <Route path="/doses-today" element={<DosesToday />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
 

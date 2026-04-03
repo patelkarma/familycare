@@ -1,5 +1,6 @@
 package com.familycare.service;
 
+import com.familycare.dto.response.AdherenceSummaryDTO;
 import com.familycare.dto.response.DailyScheduleResponse;
 import com.familycare.dto.response.DoseSlotDTO;
 import com.familycare.exception.CustomExceptions;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -70,6 +72,89 @@ public class ScheduleService {
         return members.stream()
                 .map(member -> buildSchedule(member, date))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdherenceSummaryDTO> getAdherenceSummary(int month, int year, String userEmail) {
+        User user = getUser(userEmail);
+
+        if (!"FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ForbiddenException("Only caregivers can access this endpoint");
+        }
+
+        List<FamilyMember> members = familyMemberRepository.findByUserId(user.getId());
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate monthStart = ym.atDay(1);
+        LocalDate monthEnd = ym.atEndOfMonth();
+        // Don't count future days
+        LocalDate today = LocalDate.now();
+        LocalDate effectiveEnd = monthEnd.isAfter(today) ? today : monthEnd;
+
+        return members.stream()
+                .map(member -> buildAdherence(member, monthStart, effectiveEnd))
+                .filter(dto -> dto.getTotalExpected() > 0)
+                .collect(Collectors.toList());
+    }
+
+    private AdherenceSummaryDTO buildAdherence(FamilyMember member, LocalDate from, LocalDate to) {
+        List<Medicine> medicines = medicineRepository.findByFamilyMemberIdAndIsActiveTrue(member.getId());
+
+        // Count expected doses across date range
+        int totalExpected = 0;
+        for (Medicine medicine : medicines) {
+            Map<String, String> timing = deserializeTiming(medicine.getTiming());
+            if (timing == null || timing.isEmpty()) continue;
+            int timingsPerDay = timing.size();
+
+            LocalDate medStart = medicine.getStartDate() != null ? medicine.getStartDate() : from;
+            LocalDate medEnd = medicine.getEndDate() != null ? medicine.getEndDate() : to;
+
+            LocalDate effectiveStart = medStart.isBefore(from) ? from : medStart;
+            LocalDate effectiveEnd = medEnd.isAfter(to) ? to : medEnd;
+
+            if (effectiveStart.isAfter(effectiveEnd)) continue;
+
+            long days = effectiveStart.until(effectiveEnd).getDays() + 1;
+            totalExpected += (int) days * timingsPerDay;
+        }
+
+        // Count actual logs in range
+        LocalDateTime rangeStart = from.atStartOfDay();
+        LocalDateTime rangeEnd = to.atTime(LocalTime.MAX);
+        List<MedicineLog> logs = medicineLogRepository.findByFamilyMemberIdAndScheduledTimeBetween(
+                member.getId(), rangeStart, rangeEnd);
+
+        int taken = 0;
+        int missed = 0;
+        int skipped = 0;
+        for (MedicineLog log : logs) {
+            switch (log.getStatus()) {
+                case "TAKEN" -> taken++;
+                case "MISSED" -> missed++;
+                case "SKIPPED" -> skipped++;
+            }
+        }
+
+        // Doses with no log in past = missed (not recorded in logs)
+        int loggedTotal = taken + missed + skipped;
+        int unloggedMissed = totalExpected - loggedTotal;
+        if (unloggedMissed > 0) {
+            missed += unloggedMissed;
+        }
+
+        double adherencePercent = totalExpected > 0
+                ? Math.round((taken * 100.0) / totalExpected * 10.0) / 10.0
+                : 0.0;
+
+        return AdherenceSummaryDTO.builder()
+                .memberId(member.getId())
+                .memberName(member.getName())
+                .totalExpected(totalExpected)
+                .taken(taken)
+                .missed(missed)
+                .skipped(skipped)
+                .adherencePercent(adherencePercent)
+                .build();
     }
 
     private DailyScheduleResponse buildSchedule(FamilyMember member, LocalDate date) {

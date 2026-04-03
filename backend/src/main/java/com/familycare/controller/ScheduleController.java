@@ -1,5 +1,6 @@
 package com.familycare.controller;
 
+import com.familycare.dto.response.AdherenceSummaryDTO;
 import com.familycare.dto.response.ApiResponse;
 import com.familycare.dto.response.DailyScheduleResponse;
 import com.familycare.service.ScheduleService;
@@ -46,5 +47,14 @@ public class ScheduleController {
         LocalDate targetDate = date != null ? date : LocalDate.now();
         List<DailyScheduleResponse> overview = scheduleService.getFamilyOverview(targetDate, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(overview));
+    }
+
+    @GetMapping("/adherence-summary")
+    public ResponseEntity<ApiResponse<List<AdherenceSummaryDTO>>> getAdherenceSummary(
+            @RequestParam int month,
+            @RequestParam int year,
+            Authentication auth) {
+        List<AdherenceSummaryDTO> summary = scheduleService.getAdherenceSummary(month, year, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(summary));
     }
 }

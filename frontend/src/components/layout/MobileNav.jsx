@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Users, Pill, Heart, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, Pill, Clock, Heart, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 const caregiverTabs = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/family', label: 'Family', icon: Users },
   { to: '/medicines', label: 'Meds', icon: Pill },
+  { to: '/doses-today', label: 'Doses', icon: Clock },
   { to: '/vitals', label: 'Vitals', icon: Heart },
   { to: '/sos', label: 'SOS', icon: ShieldAlert },
 ];
