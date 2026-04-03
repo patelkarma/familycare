@@ -17,7 +17,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import Avatar from '../shared/Avatar';
 
-const navItems = [
+const caregiverNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, enabled: true },
   { to: '/family', label: 'Family', icon: Users, enabled: true },
   { to: '/medicines', label: 'Medicines', icon: Pill, enabled: true },
@@ -27,9 +27,14 @@ const navItems = [
   { to: '/sos', label: 'SOS Setup', icon: ShieldAlert, enabled: false },
 ];
 
+const patientNavItems = [
+  { to: '/my-medicines', label: 'My Medicines', icon: Pill, enabled: true },
+];
+
 const TopBar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const navItems = user?.role === 'MEMBER' ? patientNavItems : caregiverNavItems;
   const navigate = useNavigate();
 
   const handleLogout = () => {

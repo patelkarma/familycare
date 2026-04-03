@@ -122,16 +122,16 @@ const PatientMedicines = () => {
       {/* Header */}
       <div className="mb-6">
         <motion.h1
-          className="text-2xl font-bold text-gray-900"
+          className="text-3xl font-bold text-gray-900"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           My Medicines
         </motion.h1>
-        <p className="text-sm text-gray-500 mt-1">{formatDate()}</p>
+        <p className="text-base text-gray-500 mt-1">{formatDate()}</p>
         {totalSlots > 0 && (
           <div className="mt-3">
-            <div className="flex items-center justify-between text-sm mb-1">
+            <div className="flex items-center justify-between text-base mb-1.5">
               <span className="text-gray-600">
                 {takenSlots} of {totalSlots} doses taken
               </span>
@@ -139,7 +139,7 @@ const PatientMedicines = () => {
                 {Math.round((takenSlots / totalSlots) * 100)}%
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-primary rounded-full"
                 initial={{ width: 0 }}
@@ -159,8 +159,8 @@ const PatientMedicines = () => {
           animate={{ scale: 1, opacity: 1 }}
         >
           <div className="text-5xl mb-4">🎉</div>
-          <h3 className="text-lg font-semibold text-gray-900">No medicines scheduled</h3>
-          <p className="text-sm text-gray-500 mt-1">You're all clear for today!</p>
+          <h3 className="text-xl font-semibold text-gray-900">No medicines scheduled</h3>
+          <p className="text-base text-gray-500 mt-1">You're all clear for today!</p>
         </motion.div>
       )}
 
@@ -179,11 +179,11 @@ const PatientMedicines = () => {
             animate={{ opacity: 1, y: 0 }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <TimingIcon className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-gray-900">
+              <TimingIcon className="w-6 h-6 text-primary" />
+              <h2 className="text-xl font-semibold text-gray-900">
                 {timingLabels[timeOfDay]}
               </h2>
-              <span className="text-xs text-gray-400 ml-1">
+              <span className="text-sm text-gray-400 ml-1">
                 {groupSlots[0]?.scheduledTime}
               </span>
             </div>
@@ -199,7 +199,7 @@ const PatientMedicines = () => {
                     <motion.div
                       key={slotKey}
                       layout
-                      className="bg-white rounded-2xl shadow-sm p-4 border border-gray-50"
+                      className="bg-white rounded-2xl shadow-sm p-5 border border-gray-50"
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
@@ -207,16 +207,16 @@ const PatientMedicines = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">
+                          <span className="text-3xl">
                             {formIcons[slot.form] || '💊'}
                           </span>
                           <div>
-                            <h3 className="font-semibold text-gray-900">
+                            <h3 className="text-lg font-bold text-gray-900">
                               {slot.medicineName}
                             </h3>
-                            <p className="text-sm text-gray-500">{slot.dosage}</p>
+                            <p className="text-base text-gray-500">{slot.dosage}</p>
                             {slot.withFood && (
-                              <p className="text-xs text-amber-600 mt-0.5">
+                              <p className="text-sm text-amber-600 mt-0.5">
                                 Take with food
                               </p>
                             )}
@@ -226,27 +226,27 @@ const PatientMedicines = () => {
                         <div className="flex items-center gap-2">
                           {slot.status === 'TAKEN' && (
                             <motion.div
-                              className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-xl"
+                              className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-xl"
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: 'spring', stiffness: 300 }}
                             >
-                              <Check className="w-4 h-4" />
-                              <span className="text-sm font-medium">Taken</span>
+                              <Check className="w-5 h-5" />
+                              <span className="text-base font-medium">Taken</span>
                             </motion.div>
                           )}
 
                           {slot.status === 'SKIPPED' && (
-                            <div className="flex items-center gap-1.5 bg-gray-100 text-gray-500 px-3 py-1.5 rounded-xl">
-                              <SkipForward className="w-4 h-4" />
-                              <span className="text-sm font-medium">Skipped</span>
+                            <div className="flex items-center gap-2 bg-gray-100 text-gray-500 px-4 py-2 rounded-xl">
+                              <SkipForward className="w-5 h-5" />
+                              <span className="text-base font-medium">Skipped</span>
                             </div>
                           )}
 
                           {slot.status === 'MISSED' && (
-                            <div className="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1.5 rounded-xl">
-                              <AlertTriangle className="w-4 h-4" />
-                              <span className="text-sm font-medium">Missed</span>
+                            <div className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-xl">
+                              <AlertTriangle className="w-5 h-5" />
+                              <span className="text-base font-medium">Missed</span>
                             </div>
                           )}
 
@@ -261,11 +261,11 @@ const PatientMedicines = () => {
                                   });
                                 }}
                                 disabled={isActioning}
-                                className="flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl text-base font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-lg shadow-primary/25"
                                 whileHover={{ scale: 1.03 }}
                                 whileTap={{ scale: 0.97 }}
                               >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-5 h-5" />
                                 Take Now
                               </motion.button>
                               {slot.status === 'PENDING' && (
@@ -278,10 +278,10 @@ const PatientMedicines = () => {
                                     });
                                   }}
                                   disabled={isActioning}
-                                  className="flex items-center gap-1 text-gray-400 hover:text-gray-600 px-2 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
+                                  className="flex items-center gap-1 text-gray-400 hover:text-gray-600 px-3 py-3 rounded-xl text-base transition-colors disabled:opacity-50"
                                   whileTap={{ scale: 0.97 }}
                                 >
-                                  <SkipForward className="w-4 h-4" />
+                                  <SkipForward className="w-5 h-5" />
                                 </motion.button>
                               )}
                             </div>
@@ -291,8 +291,8 @@ const PatientMedicines = () => {
 
                       {/* Taken timestamp */}
                       {slot.status === 'TAKEN' && slot.takenAt && (
-                        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                        <p className="text-sm text-gray-400 mt-2 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
                           Taken at{' '}
                           {new Date(slot.takenAt).toLocaleTimeString('en-IN', {
                             hour: '2-digit',

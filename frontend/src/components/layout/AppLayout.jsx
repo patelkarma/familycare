@@ -1,12 +1,15 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import MobileNav from './MobileNav';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
+const caregiverOnlyPaths = ['/dashboard', '/family', '/medicines'];
+
 const AppLayout = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -18,6 +21,14 @@ const AppLayout = () => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Role-based route protection
+  if (user?.role === 'MEMBER' && caregiverOnlyPaths.includes(location.pathname)) {
+    return <Navigate to="/my-medicines" replace />;
+  }
+  if (user?.role === 'FAMILY_HEAD' && location.pathname === '/my-medicines') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

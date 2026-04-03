@@ -11,7 +11,7 @@ const Profile = () => {
   const infoItems = [
     { icon: User, label: 'Full Name', value: user?.name },
     { icon: Mail, label: 'Email Address', value: user?.email },
-    { icon: Shield, label: 'Role', value: user?.role === 'FAMILY_HEAD' ? 'Family Head' : user?.role },
+    { icon: Shield, label: 'Role', value: user?.role === 'FAMILY_HEAD' ? 'Family Head' : 'Family Member' },
   ];
 
   return (
@@ -65,7 +65,7 @@ const Profile = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            {user?.role === 'FAMILY_HEAD' ? 'Family Head' : user?.role}
+            {user?.role === 'FAMILY_HEAD' ? 'Family Head' : 'Family Member'}
           </motion.p>
         </div>
 
