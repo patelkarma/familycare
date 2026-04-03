@@ -25,7 +25,8 @@ These are the features that make this project unique. Every feature must work in
 | 2 | Prescription OCR scanner | Photo of prescription → medicines auto-filled, no typing |
 | 3 | Family health dashboard | One view for ALL family members — not just one person |
 | 4 | Vitals trend alert | Detects dangerous patterns (3 high BP readings) → auto SMS to family |
-| 5 | Medicine stock tracker + pharmacy finder | Low stock → SMS alert + Google Maps pharmacy link |
+| 5 | Medicine stock tracker + pharmacy finder |
+ Low stock → SMS alert + Google Maps pharmacy link |
 | 6 | Medical report locker | All prescriptions, reports, X-rays stored and shareable |
 | 7 | One-tap SOS | Button → WhatsApp to all emergency contacts with GPS + medicine list |
 
