@@ -25,6 +25,7 @@ public class FamilyService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional(readOnly = true)
     public List<FamilyMemberResponse> getAllMembers(String userEmail) {
         User user = getUser(userEmail);
         return familyMemberRepository.findByUserId(user.getId()).stream()
@@ -32,6 +33,7 @@ public class FamilyService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public FamilyMemberResponse getMemberById(UUID memberId, String userEmail) {
         User user = getUser(userEmail);
         FamilyMember member = familyMemberRepository.findByIdAndUserId(memberId, user.getId())

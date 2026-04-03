@@ -47,7 +47,7 @@ public class FamilyMember {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "linked_user_id", unique = true)
     private User linkedUser;
 

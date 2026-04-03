@@ -40,7 +40,7 @@ public class MedicineLog {
 
     private String notes;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "marked_by")
     private User markedBy;
 
