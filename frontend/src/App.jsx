@@ -12,6 +12,13 @@ import Profile from './pages/Profile';
 import Medicines from './pages/Medicines';
 import PatientMedicines from './pages/PatientMedicines';
 import DosesToday from './pages/DosesToday';
+import Vitals from './pages/Vitals';
+import Appointments from './pages/Appointments';
+import Reports from './pages/Reports';
+import SosSetup from './pages/SosSetup';
+import Pharmacy from './pages/Pharmacy';
+import HealthAssistant from './pages/HealthAssistant';
+import IdentifyPill from './pages/IdentifyPill';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,8 +48,17 @@ function App() {
               <Route path="/medicines" element={<Medicines />} />
               <Route path="/my-medicines" element={<PatientMedicines />} />
               <Route path="/doses-today" element={<DosesToday />} />
+              <Route path="/vitals" element={<Vitals />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/sos" element={<SosSetup />} />
+              <Route path="/pharmacy" element={<Pharmacy />} />
+              <Route path="/assistant" element={<HealthAssistant />} />
+              <Route path="/identify-pill" element={<IdentifyPill />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
+
+            
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />

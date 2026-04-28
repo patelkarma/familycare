@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Cloud, Moon, Check, SkipForward, Clock, AlertTriangle } from 'lucide-react';
+import { Sun, Cloud, Moon, Check, SkipForward, Clock, AlertTriangle, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { scheduleApi } from '../api/schedule.api';
 import { medicinesApi } from '../api/medicines.api';
+import { sosApi } from '../api/sos.api';
+import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+import SOSButton from '../components/sos/SOSButton';
+import SOSCountdownModal from '../components/sos/SOSCountdownModal';
+import SOSResultModal from '../components/sos/SOSResultModal';
 
 const formIcons = {
   Tablet: '💊',
@@ -38,8 +44,12 @@ const statusConfig = {
 
 const PatientMedicines = () => {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const today = new Date().toISOString().split('T')[0];
   const [actioningSlot, setActioningSlot] = useState(null);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [triggerResult, setTriggerResult] = useState(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['mySchedule', today],
@@ -49,12 +59,38 @@ const PatientMedicines = () => {
     refetchInterval: 60_000,
   });
 
+  const { data: contactsData } = useQuery({
+    queryKey: ['sos-contacts', user?.familyMemberId],
+    queryFn: () => sosApi.getContacts(user.familyMemberId),
+    enabled: !!user?.familyMemberId,
+  });
+  const contacts = contactsData?.data || [];
+
+  const triggerMutation = useMutation({
+    mutationFn: (location) =>
+      sosApi.trigger({
+        memberId: user.familyMemberId,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracyMeters: location.accuracyMeters,
+      }),
+    onSuccess: (res) => {
+      setShowCountdown(false);
+      setTriggerResult(res?.data);
+      toast.success(t('toast.saved'));
+    },
+    onError: (err) => {
+      setShowCountdown(false);
+      toast.error(err?.response?.data?.message || t('toast.somethingWrong'));
+    },
+  });
+
   const markTakenMutation = useMutation({
     mutationFn: ({ medicineId, doseTiming }) =>
       medicinesApi.markTaken(medicineId, { doseTiming, notes: '' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
-      toast.success('Dose marked as taken!');
+      toast.success(t('status.doseTaken'));
       setActioningSlot(null);
     },
     onError: (err) => {
@@ -69,7 +105,7 @@ const PatientMedicines = () => {
       medicinesApi.markSkipped(medicineId, { doseTiming, notes: '' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
-      toast.success('Dose skipped');
+      toast.success(t('status.doseSkipped'));
       setActioningSlot(null);
     },
     onError: (err) => {
@@ -119,6 +155,46 @@ const PatientMedicines = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
+      {/* Emergency SOS */}
+      <motion.div
+        className="mb-6 bg-gradient-to-br from-red-50 to-amber-50 rounded-3xl p-5 border border-red-100"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex items-center gap-5">
+          <SOSButton
+            size="sm"
+            onClick={() => {
+              if (contacts.length === 0) {
+                toast.error(t('emptyDesc.addContactDesc'));
+                return;
+              }
+              setShowCountdown(true);
+            }}
+            disabled={triggerMutation.isPending || contacts.length === 0}
+          />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-extrabold text-gray-900 mb-1">
+              Need urgent help?
+            </h2>
+            <p className="text-sm text-gray-600 mb-2">
+              {contacts.length === 0
+                ? 'Ask your family to add emergency contacts first.'
+                : `Press to alert ${contacts.length} ${
+                    contacts.length === 1 ? 'contact' : 'contacts'
+                  } with your location and medical info.`}
+            </p>
+            <a
+              href="tel:108"
+              className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 font-bold text-sm"
+            >
+              <Phone className="w-4 h-4" />
+              Or call 108
+            </a>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Header */}
       <div className="mb-6">
         <motion.h1
@@ -159,8 +235,8 @@ const PatientMedicines = () => {
           animate={{ scale: 1, opacity: 1 }}
         >
           <div className="text-5xl mb-4">🎉</div>
-          <h3 className="text-xl font-semibold text-gray-900">No medicines scheduled</h3>
-          <p className="text-base text-gray-500 mt-1">You're all clear for today!</p>
+          <h3 className="text-xl font-semibold text-gray-900">{t('status.noMedicinesScheduled')}</h3>
+          <p className="text-base text-gray-500 mt-1">{t('status.allClearToday')}</p>
         </motion.div>
       )}
 
@@ -232,21 +308,21 @@ const PatientMedicines = () => {
                               transition={{ type: 'spring', stiffness: 300 }}
                             >
                               <Check className="w-5 h-5" />
-                              <span className="text-base font-medium">Taken</span>
+                              <span className="text-base font-medium">{t('status.taken')}</span>
                             </motion.div>
                           )}
 
                           {slot.status === 'SKIPPED' && (
                             <div className="flex items-center gap-2 bg-gray-100 text-gray-500 px-4 py-2 rounded-xl">
                               <SkipForward className="w-5 h-5" />
-                              <span className="text-base font-medium">Skipped</span>
+                              <span className="text-base font-medium">{t('status.skipped')}</span>
                             </div>
                           )}
 
                           {slot.status === 'MISSED' && (
                             <div className="flex items-center gap-2 bg-red-100 text-red-700 px-4 py-2 rounded-xl">
                               <AlertTriangle className="w-5 h-5" />
-                              <span className="text-base font-medium">Missed</span>
+                              <span className="text-base font-medium">{t('status.missed')}</span>
                             </div>
                           )}
 
@@ -266,7 +342,7 @@ const PatientMedicines = () => {
                                 whileTap={{ scale: 0.97 }}
                               >
                                 <Check className="w-5 h-5" />
-                                Take Now
+                                {t('status.markTaken')}
                               </motion.button>
                               {slot.status === 'PENDING' && (
                                 <motion.button
@@ -309,6 +385,18 @@ const PatientMedicines = () => {
           </motion.div>
         );
       })}
+
+      <SOSCountdownModal
+        isOpen={showCountdown}
+        memberName={user?.name}
+        onCancel={() => setShowCountdown(false)}
+        onConfirm={(location) => triggerMutation.mutate(location)}
+      />
+      <SOSResultModal
+        isOpen={!!triggerResult}
+        result={triggerResult}
+        onClose={() => setTriggerResult(null)}
+      />
     </motion.div>
   );
 };

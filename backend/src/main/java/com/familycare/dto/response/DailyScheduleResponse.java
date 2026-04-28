@@ -17,5 +17,6 @@ public class DailyScheduleResponse {
     private LocalDate date;
     private UUID memberId;
     private String memberName;
+    private String memberAvatarUrl;
     private List<DoseSlotDTO> slots;
 }

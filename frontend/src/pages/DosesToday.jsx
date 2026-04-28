@@ -17,6 +17,7 @@ import {
   BarChart3,
   SkipForward,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { scheduleApi } from '../api/schedule.api';
 import Avatar from '../components/shared/Avatar';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
@@ -54,6 +55,7 @@ const getAdherenceColor = (percent) => {
 
 const DosesToday = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -98,10 +100,10 @@ const DosesToday = () => {
           className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-primary transition-colors mb-3"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+          {t('common.back')}
         </button>
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-          Today&apos;s Doses
+          {t('doses.title')}
         </h1>
         <p className="text-gray-500 mt-1">
           {new Date().toLocaleDateString('en-IN', {
@@ -232,7 +234,7 @@ const DosesToday = () => {
                     {/* Member header */}
                     <div className="flex items-center justify-between mb-5">
                       <div className="flex items-center gap-3">
-                        <Avatar name={schedule.memberName} size="lg" />
+                        <Avatar name={schedule.memberName} imageUrl={schedule.memberAvatarUrl} size="lg" />
                         <div>
                           <h3 className="font-bold text-gray-900 text-lg">
                             {schedule.memberName}
@@ -363,7 +365,7 @@ const DosesToday = () => {
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-gray-900">Monthly Summary</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('doses.monthlyAdherence')}</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -421,7 +423,7 @@ const DosesToday = () => {
                   {/* Member header */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={summary.memberName} size="md" />
+                      <Avatar name={summary.memberName} imageUrl={summary.memberAvatarUrl} size="md" />
                       <div>
                         <h3 className="font-semibold text-gray-900">{summary.memberName}</h3>
                         <p className="text-xs text-gray-400">{summary.totalExpected} doses expected</p>
@@ -453,21 +455,21 @@ const DosesToday = () => {
                       <Check className="w-4 h-4 text-green-600" />
                       <div>
                         <p className="text-sm font-bold text-green-700">{summary.taken}</p>
-                        <p className="text-[10px] text-green-500">Taken</p>
+                        <p className="text-[10px] text-green-500">{t('status.taken')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
                       <AlertTriangle className="w-4 h-4 text-red-500" />
                       <div>
                         <p className="text-sm font-bold text-red-600">{summary.missed}</p>
-                        <p className="text-[10px] text-red-400">Missed</p>
+                        <p className="text-[10px] text-red-400">{t('status.missed')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
                       <SkipForward className="w-4 h-4 text-gray-400" />
                       <div>
                         <p className="text-sm font-bold text-gray-600">{summary.skipped}</p>
-                        <p className="text-[10px] text-gray-400">Skipped</p>
+                        <p className="text-[10px] text-gray-400">{t('status.skipped')}</p>
                       </div>
                     </div>
                   </div>

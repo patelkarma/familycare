@@ -1,0 +1,270 @@
+package com.familycare.service;
+
+import com.familycare.dto.response.*;
+import com.familycare.exception.CustomExceptions;
+import com.familycare.model.Appointment;
+import com.familycare.model.FamilyMember;
+import com.familycare.model.Medicine;
+import com.familycare.model.User;
+import com.familycare.repository.AppointmentRepository;
+import com.familycare.repository.FamilyMemberRepository;
+import com.familycare.repository.MedicineRepository;
+import com.familycare.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DashboardService {
+
+    private static final String CACHE_PREFIX = "dashboard:";
+    private static final Duration CACHE_TTL = Duration.ofSeconds(60);
+    private static final int RECENT_REPORTS_LIMIT = 6;
+    private static final int UPCOMING_APPOINTMENTS_DAYS = 14;
+
+    private final UserRepository userRepository;
+    private final FamilyMemberRepository familyMemberRepository;
+    private final MedicineRepository medicineRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final ScheduleService scheduleService;
+    private final ReportService reportService;
+    private final FamilyService familyService;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Transactional(readOnly = true)
+    public DashboardSummaryResponse getSummary(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("User not found"));
+
+        String cacheKey = CACHE_PREFIX + user.getId();
+        try {
+            String cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return objectMapper.readValue(cached, DashboardSummaryResponse.class);
+            }
+        } catch (Exception e) {
+            log.warn("Dashboard cache read failed for {}: {}", userEmail, e.getMessage());
+        }
+
+        DashboardSummaryResponse summary = buildSummary(user, userEmail);
+
+        try {
+            redisTemplate.opsForValue().set(
+                    cacheKey, objectMapper.writeValueAsString(summary), CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("Dashboard cache write failed for {}: {}", userEmail, e.getMessage());
+        }
+
+        return summary;
+    }
+
+    public void invalidateCache(UUID userId) {
+        try {
+            redisTemplate.delete(CACHE_PREFIX + userId);
+        } catch (Exception e) {
+            log.warn("Dashboard cache invalidate failed: {}", e.getMessage());
+        }
+    }
+
+    private DashboardSummaryResponse buildSummary(User user, String userEmail) {
+        LocalDate today = LocalDate.now();
+        boolean isCaregiver = "FAMILY_HEAD".equals(user.getRole());
+
+        List<FamilyMemberResponse> members = isCaregiver
+                ? familyService.getAllMembers(userEmail)
+                : List.of();
+
+        List<DailyScheduleResponse> familySchedules = isCaregiver
+                ? scheduleService.getFamilyOverview(today, userEmail)
+                : List.of();
+
+        DashboardSummaryResponse.DoseStats stats = computeDoseStats(familySchedules);
+        Set<UUID> activeMedicineIds = collectActiveMedicineIds(familySchedules);
+
+        List<DashboardSummaryResponse.LowStockMedicine> lowStock = isCaregiver
+                ? collectLowStock(user.getId())
+                : List.of();
+
+        List<AppointmentResponse> upcoming = isCaregiver
+                ? collectUpcomingAppointments(user.getId())
+                : List.of();
+
+        List<ReportResponse> recentReports = isCaregiver
+                ? reportService.getRecentReportsForUser(userEmail, RECENT_REPORTS_LIMIT)
+                : List.of();
+
+        List<DashboardSummaryResponse.DashboardAlert> alerts = buildAlerts(
+                stats, lowStock, upcoming, familySchedules);
+
+        return DashboardSummaryResponse.builder()
+                .date(today)
+                .memberCount(members.size())
+                .activeMedicineCount(activeMedicineIds.size())
+                .members(members)
+                .familySchedules(familySchedules)
+                .todayDoseStats(stats)
+                .lowStockMedicines(lowStock)
+                .upcomingAppointments(upcoming)
+                .recentReports(recentReports)
+                .alerts(alerts)
+                .build();
+    }
+
+    private DashboardSummaryResponse.DoseStats computeDoseStats(List<DailyScheduleResponse> schedules) {
+        int taken = 0, missed = 0, pending = 0, skipped = 0, total = 0;
+        for (DailyScheduleResponse schedule : schedules) {
+            if (schedule.getSlots() == null) continue;
+            for (DoseSlotDTO slot : schedule.getSlots()) {
+                total++;
+                switch (slot.getStatus()) {
+                    case "TAKEN" -> taken++;
+                    case "MISSED" -> missed++;
+                    case "PENDING" -> pending++;
+                    case "SKIPPED" -> skipped++;
+                }
+            }
+        }
+        return DashboardSummaryResponse.DoseStats.builder()
+                .total(total)
+                .taken(taken)
+                .missed(missed)
+                .pending(pending)
+                .skipped(skipped)
+                .build();
+    }
+
+    private Set<UUID> collectActiveMedicineIds(List<DailyScheduleResponse> schedules) {
+        Set<UUID> ids = new HashSet<>();
+        for (DailyScheduleResponse schedule : schedules) {
+            if (schedule.getSlots() == null) continue;
+            for (DoseSlotDTO slot : schedule.getSlots()) {
+                if (slot.getMedicineId() != null) ids.add(slot.getMedicineId());
+            }
+        }
+        return ids;
+    }
+
+    private List<DashboardSummaryResponse.LowStockMedicine> collectLowStock(UUID userId) {
+        List<Medicine> medicines = medicineRepository.findByFamilyMemberUserIdAndIsActiveTrue(userId);
+        List<DashboardSummaryResponse.LowStockMedicine> result = new ArrayList<>();
+        for (Medicine m : medicines) {
+            Integer stock = m.getStockCount();
+            Integer threshold = m.getLowStockAlert() != null ? m.getLowStockAlert() : 5;
+            if (stock == null) continue;
+            if (stock <= threshold) {
+                FamilyMember fm = m.getFamilyMember();
+                result.add(DashboardSummaryResponse.LowStockMedicine.builder()
+                        .medicineId(m.getId())
+                        .medicineName(m.getName())
+                        .memberId(fm != null ? fm.getId() : null)
+                        .memberName(fm != null ? fm.getName() : null)
+                        .stockCount(stock)
+                        .lowStockAlert(threshold)
+                        .build());
+            }
+        }
+        result.sort(Comparator.comparingInt(r -> r.getStockCount() != null ? r.getStockCount() : Integer.MAX_VALUE));
+        return result;
+    }
+
+    private List<AppointmentResponse> collectUpcomingAppointments(UUID userId) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.plusDays(UPCOMING_APPOINTMENTS_DAYS);
+        List<FamilyMember> members = familyMemberRepository.findByUserId(userId);
+
+        List<AppointmentResponse> responses = new ArrayList<>();
+        for (FamilyMember member : members) {
+            List<Appointment> appts = appointmentRepository
+                    .findByFamilyMemberIdAndAppointmentDateAfterOrderByAppointmentDateAsc(
+                            member.getId(), now);
+            for (Appointment a : appts) {
+                if (a.getAppointmentDate() == null) continue;
+                if (a.getAppointmentDate().isAfter(cutoff)) continue;
+                responses.add(AppointmentResponse.builder()
+                        .id(a.getId())
+                        .familyMemberId(member.getId())
+                        .familyMemberName(member.getName())
+                        .doctorName(a.getDoctorName())
+                        .speciality(a.getSpeciality())
+                        .hospital(a.getHospital())
+                        .appointmentDate(a.getAppointmentDate())
+                        .notes(a.getNotes())
+                        .reminderSent(Boolean.TRUE.equals(a.getReminderWeekSent()))
+                        .createdAt(a.getCreatedAt())
+                        .build());
+            }
+        }
+        responses.sort(Comparator.comparing(AppointmentResponse::getAppointmentDate));
+        return responses;
+    }
+
+    private List<DashboardSummaryResponse.DashboardAlert> buildAlerts(
+            DashboardSummaryResponse.DoseStats stats,
+            List<DashboardSummaryResponse.LowStockMedicine> lowStock,
+            List<AppointmentResponse> upcoming,
+            List<DailyScheduleResponse> schedules) {
+        List<DashboardSummaryResponse.DashboardAlert> alerts = new ArrayList<>();
+
+        if (stats.getMissed() > 0) {
+            alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
+                    .type("MISSED_DOSE")
+                    .severity(stats.getMissed() >= 3 ? "CRITICAL" : "WARNING")
+                    .message(stats.getMissed() + " dose" + (stats.getMissed() > 1 ? "s" : "") + " missed today")
+                    .build());
+        }
+
+        for (DashboardSummaryResponse.LowStockMedicine m : lowStock) {
+            Integer stock = m.getStockCount();
+            String severity = stock != null && stock == 0 ? "CRITICAL" : "WARNING";
+            alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
+                    .type("LOW_STOCK")
+                    .severity(severity)
+                    .message(m.getMedicineName() + " for " + m.getMemberName() + " — "
+                            + stock + " dose" + (stock != null && stock == 1 ? "" : "s") + " left")
+                    .relatedMemberId(m.getMemberId())
+                    .build());
+        }
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("d MMM, h:mm a");
+        LocalDateTime soon = LocalDateTime.now().plusDays(2);
+        for (AppointmentResponse a : upcoming) {
+            if (a.getAppointmentDate() == null) continue;
+            if (a.getAppointmentDate().isAfter(soon)) break;
+            String rawName = a.getDoctorName() != null ? a.getDoctorName().trim() : "";
+            String doctorLabel;
+            if (rawName.isEmpty()) {
+                doctorLabel = "visit";
+            } else if (rawName.toLowerCase().startsWith("dr.") || rawName.toLowerCase().startsWith("dr ")) {
+                doctorLabel = rawName; // user already typed Dr. — don't double up
+            } else {
+                doctorLabel = "Dr. " + rawName;
+            }
+            alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
+                    .type("UPCOMING_APPOINTMENT")
+                    .severity("INFO")
+                    .message(doctorLabel + " for " + a.getFamilyMemberName() + " on "
+                            + a.getAppointmentDate().format(fmt))
+                    .relatedMemberId(a.getFamilyMemberId())
+                    .build());
+        }
+
+        return alerts;
+    }
+}

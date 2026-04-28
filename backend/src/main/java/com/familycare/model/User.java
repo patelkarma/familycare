@@ -34,9 +34,15 @@ public class User implements UserDetails {
 
     private String phone;
 
+    @Column(name = "whatsapp_phone")
+    private String whatsappPhone;
+
     @Column(nullable = false)
     @Builder.Default
     private String role = "FAMILY_HEAD";
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -68,5 +74,10 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    /** Phone number to use for WhatsApp messages — falls back to {@link #phone} if not set. */
+    public String whatsappPhoneOrFallback() {
+        return (whatsappPhone != null && !whatsappPhone.isBlank()) ? whatsappPhone : phone;
     }
 }

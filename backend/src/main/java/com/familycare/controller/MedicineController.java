@@ -2,10 +2,13 @@ package com.familycare.controller;
 
 import com.familycare.dto.request.MedicineLogRequest;
 import com.familycare.dto.request.MedicineRequest;
+import com.familycare.dto.request.ParsePrescriptionRequest;
 import com.familycare.dto.response.ApiResponse;
+import com.familycare.dto.response.DetectedMedicineResponse;
 import com.familycare.dto.response.MedicineLogResponse;
 import com.familycare.dto.response.MedicineResponse;
 import com.familycare.service.MedicineService;
+import com.familycare.service.PrescriptionParser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +26,7 @@ import java.util.UUID;
 public class MedicineController {
 
     private final MedicineService medicineService;
+    private final PrescriptionParser prescriptionParser;
 
     @GetMapping("/member/{memberId}")
     public ResponseEntity<ApiResponse<List<MedicineResponse>>> getMedicinesByMember(
@@ -74,10 +78,27 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
+    @PostMapping("/{id}/resend-reminder")
+    public ResponseEntity<ApiResponse<String>> resendReminder(
+            @PathVariable UUID id, @RequestParam String doseTiming, Authentication auth) {
+        String result = medicineService.resendReminder(id, doseTiming, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(result, "Reminder resent"));
+    }
+
     @PutMapping("/{id}/stock")
     public ResponseEntity<ApiResponse<MedicineResponse>> updateStock(
             @PathVariable UUID id, @RequestBody Map<String, Integer> body, Authentication auth) {
         MedicineResponse medicine = medicineService.updateStock(id, body.get("stockCount"), auth.getName());
         return ResponseEntity.ok(ApiResponse.success(medicine, "Stock updated successfully"));
+    }
+
+    @PostMapping("/parse-prescription")
+    public ResponseEntity<ApiResponse<List<DetectedMedicineResponse>>> parsePrescription(
+            @Valid @RequestBody ParsePrescriptionRequest request) {
+        List<DetectedMedicineResponse> detected = prescriptionParser.parse(request.getRawText());
+        String msg = detected.isEmpty()
+                ? "No medicines detected. Please add them manually."
+                : "Detected " + detected.size() + " medicine" + (detected.size() > 1 ? "s" : "");
+        return ResponseEntity.ok(ApiResponse.success(detected, msg));
     }
 }

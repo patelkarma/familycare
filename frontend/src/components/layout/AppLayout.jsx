@@ -20,7 +20,7 @@ const AppLayout = () => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Role-based route protection

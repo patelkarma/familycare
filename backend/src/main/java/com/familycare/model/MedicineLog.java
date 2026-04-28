@@ -40,6 +40,9 @@ public class MedicineLog {
 
     private String notes;
 
+    @Column(length = 20)
+    private String channel;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "marked_by")
     private User markedBy;

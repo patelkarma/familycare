@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Pencil, Trash2, Users, ChevronRight, UserPlus, LinkIcon, Unlink } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, ChevronRight, UserPlus, LinkIcon, Unlink, Crown } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../hooks/useAuth';
 import { familyApi } from '../api/family.api';
 import { formatRelationship, formatDate } from '../utils/formatters';
 import Avatar from '../components/shared/Avatar';
@@ -29,6 +31,7 @@ const Family = () => {
   const [linkEmail, setLinkEmail] = useState('');
   const [linkPassword, setLinkPassword] = useState('');
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const { data, isLoading } = useQuery({
     queryKey: ['familyMembers'],
@@ -39,13 +42,17 @@ const Family = () => {
     mutationFn: (id) => familyApi.deleteMember(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
-      toast.success('Family member removed');
+      toast.success(t('toast.memberRemoved'));
       setDeletingId(null);
     },
-    onError: () => toast.error('Failed to delete member'),
+    onError: () => toast.error(t('toast.memberDeleteFailed')),
   });
 
-  const members = data?.data || [];
+  const { user } = useAuth();
+  const allMembers = data?.data || [];
+  // Separate the family head's own record from other members (match by linked email, not relationship)
+  const selfMember = allMembers.find((m) => m.linkedUserEmail === user?.email);
+  const members = allMembers.filter((m) => m !== selfMember);
 
   const linkMutation = useMutation({
     mutationFn: ({ memberId, data: linkData }) => familyApi.linkAccount(memberId, linkData),
@@ -103,34 +110,76 @@ const Family = () => {
     <div className="space-y-6">
       {/* Header */}
       <motion.div
-        className="flex items-center justify-between"
+        className="flex items-center justify-between gap-3"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Family Members</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            {members.length} member{members.length !== 1 ? 's' : ''} added
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('family.title')}</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
+            {t('subtitle.family')}
           </p>
         </div>
         <motion.button
           onClick={handleAdd}
-          className="flex items-center gap-2 bg-primary text-white rounded-xl px-5 py-2.5 font-semibold text-sm shadow-lg shadow-primary/25 hover:bg-primary-dark transition-colors"
+          className="shrink-0 flex items-center gap-1.5 sm:gap-2 bg-primary text-white rounded-xl px-3.5 sm:px-5 py-2 sm:py-2.5 font-semibold text-xs sm:text-sm shadow-lg shadow-primary/25 hover:bg-primary-dark transition-colors"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
           <Plus className="w-4 h-4" />
-          Add Member
+          {t('family.addMember')}
         </motion.button>
       </motion.div>
+
+      {/* Your Profile (Self) */}
+      {selfMember && (
+        <motion.div
+          className="bg-gradient-to-r from-primary-light to-amber-50 rounded-2xl p-5 border-2 border-primary/20"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-4">
+            <Avatar name={selfMember.name} imageUrl={selfMember.avatarUrl} relationship="Self" size="lg" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-gray-900 text-lg">{selfMember.name}</h3>
+                <span className="text-xs bg-primary/15 text-primary-dark px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <Crown className="w-3 h-3" />
+                  You
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selfMember.bloodGroup && (
+                  <span className="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-full font-medium">{selfMember.bloodGroup}</span>
+                )}
+                {selfMember.gender && (
+                  <span className="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-medium">{selfMember.gender}</span>
+                )}
+                {selfMember.dateOfBirth && (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">Born {formatDate(selfMember.dateOfBirth)}</span>
+                )}
+              </div>
+            </div>
+            <motion.button
+              onClick={() => handleEdit(selfMember)}
+              className="p-2 rounded-lg text-primary hover:text-primary-dark hover:bg-primary/10 transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              title={t('family.editYourProfile')}
+            >
+              <Pencil className="w-4 h-4" />
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Members list */}
       {members.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="Your family awaits!"
-          description="Add your parents, spouse, or children to start managing their health from one place."
-          actionLabel="Add First Member"
+          title={t('emptyDesc.yourFamilyAwaits')}
+          description={t('emptyDesc.yourFamilyDesc')}
+          actionLabel={t('family.addFirstMember')}
           onAction={handleAdd}
         />
       ) : (
@@ -197,7 +246,7 @@ const Family = () => {
                     className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    title="Edit"
+                    title={t('common.edit')}
                   >
                     <Pencil className="w-4 h-4" />
                   </motion.button>
@@ -206,7 +255,7 @@ const Family = () => {
                     className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    title="Delete"
+                    title={t('common.delete')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </motion.button>
@@ -255,6 +304,7 @@ const Family = () => {
         {showForm && (
           <FamilyMemberForm
             member={editingMember}
+            isSelf={editingMember && selfMember && editingMember.id === selfMember.id}
             onClose={handleFormClose}
           />
         )}
@@ -265,9 +315,9 @@ const Family = () => {
         isOpen={!!deletingId}
         onClose={() => setDeletingId(null)}
         onConfirm={() => deleteMutation.mutate(deletingId)}
-        title="Remove family member?"
+        title={t('confirm.deleteMember')}
         message="This will remove this member and all their associated data. This action cannot be undone."
-        confirmText="Remove"
+        confirmText={t('family.remove')}
       />
 
       {/* Link Account Modal */}

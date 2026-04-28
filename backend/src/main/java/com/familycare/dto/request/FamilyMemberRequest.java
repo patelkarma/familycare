@@ -17,6 +17,7 @@ public class FamilyMemberRequest {
     private String bloodGroup;
     private String gender;
     private String phone;
+    private String whatsappPhone;
     private String allergies;
     private String chronicDiseases;
 }

@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Delete', danger = true }) => {
+const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, danger = true }) => {
+  const { t } = useTranslation();
+  const finalConfirmText = confirmText || t('common.delete');
   return (
     <AnimatePresence>
       {isOpen && (
@@ -52,7 +55,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </motion.button>
                 <motion.button
                   onClick={onConfirm}
@@ -62,7 +65,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  {confirmText}
+                  {finalConfirmText}
                 </motion.button>
               </div>
             </div>

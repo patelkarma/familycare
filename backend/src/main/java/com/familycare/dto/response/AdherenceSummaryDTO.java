@@ -14,6 +14,7 @@ import java.util.UUID;
 public class AdherenceSummaryDTO {
     private UUID memberId;
     private String memberName;
+    private String memberAvatarUrl;
     private int totalExpected;
     private int taken;
     private int missed;

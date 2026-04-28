@@ -13,4 +13,6 @@ public interface FamilyMemberRepository extends JpaRepository<FamilyMember, UUID
     List<FamilyMember> findByUserId(UUID userId);
     Optional<FamilyMember> findByIdAndUserId(UUID id, UUID userId);
     Optional<FamilyMember> findByLinkedUserId(UUID linkedUserId);
+    Optional<FamilyMember> findByUserIdAndLinkedUserId(UUID userId, UUID linkedUserId);
+    Optional<FamilyMember> findFirstByPhone(String phone);
 }

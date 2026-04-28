@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class FamilyService {
     private final FamilyMemberRepository familyMemberRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     @Transactional(readOnly = true)
     public List<FamilyMemberResponse> getAllMembers(String userEmail) {
@@ -52,6 +54,7 @@ public class FamilyService {
                 .bloodGroup(request.getBloodGroup())
                 .gender(request.getGender())
                 .phone(request.getPhone())
+                .whatsappPhone(request.getWhatsappPhone())
                 .allergies(request.getAllergies())
                 .chronicDiseases(request.getChronicDiseases())
                 .build();
@@ -71,10 +74,19 @@ public class FamilyService {
         member.setBloodGroup(request.getBloodGroup());
         member.setGender(request.getGender());
         member.setPhone(request.getPhone());
+        member.setWhatsappPhone(request.getWhatsappPhone());
         member.setAllergies(request.getAllergies());
         member.setChronicDiseases(request.getChronicDiseases());
 
         familyMemberRepository.save(member);
+
+        // Keep linked User's phone/whatsapp in sync so escalation/alert paths stay correct
+        if (member.getLinkedUser() != null) {
+            User linked = member.getLinkedUser();
+            linked.setPhone(request.getPhone());
+            linked.setWhatsappPhone(request.getWhatsappPhone());
+            userRepository.save(linked);
+        }
         return toResponse(member);
     }
 
@@ -123,6 +135,32 @@ public class FamilyService {
     }
 
     @Transactional
+    public FamilyMemberResponse updateAvatar(UUID memberId, MultipartFile file, String userEmail) {
+        User user = getUser(userEmail);
+
+        if (!"FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ForbiddenException("Only caregivers can update avatars");
+        }
+
+        FamilyMember member = familyMemberRepository.findByIdAndUserId(memberId, user.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Family member not found"));
+
+        String folder = "familycare/avatars/" + member.getId();
+        CloudinaryService.UploadResult uploaded = cloudinaryService.upload(file, folder);
+
+        member.setAvatarUrl(uploaded.secureUrl);
+        familyMemberRepository.save(member);
+
+        // Mirror to the linked user account so Profile/Sidebar/TopBar stay in sync
+        if (member.getLinkedUser() != null) {
+            User linked = member.getLinkedUser();
+            linked.setAvatarUrl(uploaded.secureUrl);
+            userRepository.save(linked);
+        }
+        return toResponse(member);
+    }
+
+    @Transactional
     public FamilyMemberResponse unlinkAccount(UUID memberId, String userEmail) {
         User user = getUser(userEmail);
 
@@ -157,11 +195,31 @@ public class FamilyService {
                 .bloodGroup(member.getBloodGroup())
                 .gender(member.getGender())
                 .phone(member.getPhone())
+                .whatsappPhone(member.getWhatsappPhone())
                 .allergies(member.getAllergies())
                 .chronicDiseases(member.getChronicDiseases())
-                .avatarUrl(member.getAvatarUrl())
+                .avatarUrl(resolveAvatar(member))
                 .linkedUserEmail(member.getLinkedUser() != null ? member.getLinkedUser().getEmail() : null)
                 .createdAt(member.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * Returns the avatar URL to display for a member, falling back to the linked user's
+     * profile photo (or the owning user's photo for "Self" members) if the member has none.
+     * Lets a profile-pic upload appear in the Family list / Dashboard without requiring
+     * the FamilyMember row to be separately updated.
+     */
+    public static String resolveAvatar(FamilyMember m) {
+        if (m == null) return null;
+        if (m.getAvatarUrl() != null && !m.getAvatarUrl().isBlank()) return m.getAvatarUrl();
+        if (m.getLinkedUser() != null && m.getLinkedUser().getAvatarUrl() != null) {
+            return m.getLinkedUser().getAvatarUrl();
+        }
+        if ("Self".equalsIgnoreCase(m.getRelationship())
+                && m.getUser() != null && m.getUser().getAvatarUrl() != null) {
+            return m.getUser().getAvatarUrl();
+        }
+        return null;
     }
 }

@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
       name: authResponse.name,
       email: authResponse.email,
       role: authResponse.role,
+      avatarUrl: authResponse.avatarUrl || null,
       familyMemberId: authResponse.familyMemberId || null,
     });
   };
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         login,
         logout,
+        setUser,
       }}
     >
       {children}

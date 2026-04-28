@@ -1,37 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  Users,
-  Pill,
-  Clock,
-  Heart,
-  FileText,
-  ShieldAlert,
-  LogOut,
-  Calendar,
-} from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../hooks/useAuth';
 import Avatar from '../shared/Avatar';
-
-const caregiverNavItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, enabled: true },
-  { to: '/family', label: 'Family', icon: Users, enabled: true },
-  { to: '/medicines', label: 'Medicines', icon: Pill, enabled: true },
-  { to: '/doses-today', label: 'Doses Today', icon: Clock, enabled: true },
-  { to: '/vitals', label: 'Vitals', icon: Heart, enabled: false },
-  { to: '/appointments', label: 'Appointments', icon: Calendar, enabled: false },
-  { to: '/reports', label: 'Reports', icon: FileText, enabled: false },
-  { to: '/sos', label: 'SOS Setup', icon: ShieldAlert, enabled: false },
-];
-
-const patientNavItems = [
-  { to: '/my-medicines', label: 'My Medicines', icon: Pill, enabled: true },
-];
+import ThemeToggle from '../shared/ThemeToggle';
+import LanguageSwitcher from '../shared/LanguageSwitcher';
+import { navItemsForRole } from './navItems';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
-  const navItems = user?.role === 'MEMBER' ? patientNavItems : caregiverNavItems;
+  const { t } = useTranslation();
+  const navItems = navItemsForRole(user?.role);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -47,15 +27,19 @@ const Sidebar = () => {
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
     >
       {/* Logo */}
-      <div className="p-6 pb-4">
-        <motion.h1
-          className="text-2xl font-bold text-gray-900"
+      <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+        <motion.div
+          className="flex items-center gap-2.5 min-w-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          Family<span className="text-primary">Care</span>
-        </motion.h1>
+          <img src="/familycare_icon.png" alt="" className="w-9 h-9 rounded-xl shadow-sm shrink-0" />
+          <h1 className="text-xl font-bold text-gray-900 leading-none truncate">
+            Family<span className="text-primary">Care</span>
+          </h1>
+        </motion.div>
+        <ThemeToggle />
       </div>
 
       {/* Nav */}
@@ -67,29 +51,30 @@ const Sidebar = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 + i * 0.05 }}
           >
-            {item.enabled ? (
-              <NavLink
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? 'bg-primary-light text-primary-dark shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`
-                }
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </NavLink>
-            ) : (
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-300 cursor-not-allowed">
-                <item.icon className="w-5 h-5" />
-                {item.label}
-                <span className="ml-auto text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Soon</span>
-              </div>
-            )}
+            <NavLink
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-primary-light text-primary-dark shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+              {item.labelKey ? t(item.labelKey, item.label) : item.label}
+            </NavLink>
           </motion.div>
         ))}
+
+        {/* Language picker — sits as a nav row, opens an upward dropdown */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 + navItems.length * 0.05 }}
+        >
+          <LanguageSwitcher variant="navItem" />
+        </motion.div>
       </nav>
 
       {/* User section */}
@@ -100,7 +85,7 @@ const Sidebar = () => {
           whileHover={{ x: 4 }}
           whileTap={{ scale: 0.97 }}
         >
-          <Avatar name={user?.name} relationship="Self" size="sm" />
+          <Avatar name={user?.name} imageUrl={user?.avatarUrl} relationship="Self" size="sm" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
             <p className="text-xs text-gray-400 truncate">{user?.email}</p>
@@ -113,7 +98,7 @@ const Sidebar = () => {
           whileTap={{ scale: 0.97 }}
         >
           <LogOut className="w-4 h-4" />
-          Sign out
+          {t('auth.signOut', 'Sign out')}
         </motion.button>
       </div>
     </motion.aside>

@@ -9,4 +9,15 @@ export const medicinesApi = {
   markSkipped: (id, data) => api.post(`/api/medicines/${id}/mark-skipped`, data).then((res) => res.data),
   getLogs: (id) => api.get(`/api/medicines/${id}/logs`).then((res) => res.data),
   updateStock: (id, stockCount) => api.put(`/api/medicines/${id}/stock`, { stockCount }).then((res) => res.data),
+  resendReminder: (id, doseTiming) => api.post(`/api/medicines/${id}/resend-reminder?doseTiming=${doseTiming}`).then((res) => res.data),
+  parsePrescription: (rawText, prescriptionUrl) =>
+    api.post('/api/medicines/parse-prescription', { rawText, prescriptionUrl }).then((res) => res.data),
+  bulkAdd: async (memberId, medicines) => {
+    const results = await Promise.allSettled(
+      medicines.map((med) => api.post('/api/medicines', { ...med, familyMemberId: memberId }))
+    );
+    const added = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.length - added;
+    return { added, failed };
+  },
 };

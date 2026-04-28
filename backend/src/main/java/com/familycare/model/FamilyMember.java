@@ -39,6 +39,9 @@ public class FamilyMember {
 
     private String phone;
 
+    @Column(name = "whatsapp_phone")
+    private String whatsappPhone;
+
     private String allergies;
 
     @Column(name = "chronic_diseases")
@@ -57,5 +60,10 @@ public class FamilyMember {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    /** Phone number to use for WhatsApp messages — falls back to {@link #phone} if not set. */
+    public String whatsappPhoneOrFallback() {
+        return (whatsappPhone != null && !whatsappPhone.isBlank()) ? whatsappPhone : phone;
     }
 }

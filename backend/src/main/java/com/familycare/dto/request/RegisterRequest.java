@@ -19,4 +19,20 @@ public class RegisterRequest {
     private String password;
 
     private String phone;
+
+    // Optional separate WhatsApp number (e.g. user's secondary SIM that has WhatsApp installed)
+    private String whatsappPhone;
+
+    // Role selection: "FAMILY_HEAD" (default) or "MEMBER"
+    private String role;
+
+    // Health profile fields
+    private String dateOfBirth;
+    private String bloodGroup;
+    private String gender;
+    private String allergies;
+    private String chronicDiseases;
+
+    // Required for MEMBER registration — the family head's email to link to
+    private String familyHeadEmail;
 }

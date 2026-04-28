@@ -28,7 +28,8 @@ public class MedicineService {
     private final FamilyMemberRepository familyMemberRepository;
     private final UserRepository userRepository;
     private final ReminderService reminderService;
-    private final SmsService smsService;
+    private final WhatsAppService whatsAppService;
+    private final ReminderLogRepository reminderLogRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -136,36 +137,74 @@ public class MedicineService {
         User user = getUser(userEmail);
         Medicine medicine = resolveMedicine(medicineId, user);
 
-        // Prevent duplicate logs for same dose timing on same day
-        checkDuplicateLog(medicineId, doseTiming);
+        Optional<MedicineLog> existingLog = findExistingLog(medicineId, doseTiming);
+        if (existingLog.isPresent() && "PENDING".equals(existingLog.get().getStatus())
+                && "FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ConflictException(
+                    "Reminder already sent for this dose at " +
+                            doseTiming.toLowerCase() + " time. Waiting for " +
+                            medicine.getFamilyMember().getName() + " to confirm.");
+        }
 
-        MedicineLog logEntry = MedicineLog.builder()
-                .medicine(medicine)
-                .familyMember(medicine.getFamilyMember())
-                .scheduledTime(LocalDateTime.now())
-                .takenAt(LocalDateTime.now())
-                .status("TAKEN")
-                .doseTiming(doseTiming)
-                .notes(notes)
-                .markedBy(user)
-                .build();
+        return markTakenInternal(medicine, doseTiming, notes, user, "APP");
+    }
 
-        medicineLogRepository.save(logEntry);
+    /**
+     * Mark a dose taken without user-level auth checks. Caller guarantees authorization
+     * (e.g. WhatsApp inbound webhook resolving sender phone → FamilyMember).
+     */
+    @Transactional
+    public MedicineLogResponse markTakenInternal(
+            Medicine medicine, String doseTiming, String notes, User markedBy, String channel) {
+        Optional<MedicineLog> existingLog = findExistingLog(medicine.getId(), doseTiming);
+
+        MedicineLog logEntry;
+        if (existingLog.isPresent()) {
+            MedicineLog existing = existingLog.get();
+            switch (existing.getStatus()) {
+                case "PENDING" -> {
+                    existing.setStatus("TAKEN");
+                    existing.setTakenAt(LocalDateTime.now());
+                    existing.setMarkedBy(markedBy);
+                    existing.setNotes(notes);
+                    existing.setChannel(channel);
+                    logEntry = medicineLogRepository.save(existing);
+                }
+                case "TAKEN" -> throw new CustomExceptions.ConflictException(
+                        "This dose has already been marked as taken");
+                default -> throw new CustomExceptions.ConflictException(
+                        "This dose was already marked as " + existing.getStatus().toLowerCase() + " for today");
+            }
+        } else {
+            logEntry = MedicineLog.builder()
+                    .medicine(medicine)
+                    .familyMember(medicine.getFamilyMember())
+                    .scheduledTime(LocalDateTime.now())
+                    .takenAt(LocalDateTime.now())
+                    .status("TAKEN")
+                    .doseTiming(doseTiming)
+                    .notes(notes)
+                    .channel(channel)
+                    .markedBy(markedBy)
+                    .build();
+            medicineLogRepository.save(logEntry);
+        }
 
         // Decrement stock
         if (medicine.getStockCount() != null && medicine.getStockCount() > 0) {
             medicine.setStockCount(medicine.getStockCount() - 1);
             medicineRepository.save(medicine);
 
-            // Check low stock — notify the family head
+            // Check low stock — notify the family head via WhatsApp
             if (medicine.getStockCount() <= medicine.getLowStockAlert()) {
                 User familyHead = medicine.getFamilyMember().getUser();
-                String phone = familyHead.getPhone();
+                String phone = familyHead.whatsappPhoneOrFallback();
                 if (phone != null && !phone.isBlank()) {
                     String msg = "FamilyCare Alert: " + medicine.getName() + " for " +
                             medicine.getFamilyMember().getName() + " has only " +
-                            medicine.getStockCount() + " doses left. Please refill soon.";
-                    smsService.sendSms(phone, msg);
+                            medicine.getStockCount() + " doses left. Find pharmacy: " +
+                            "https://maps.google.com/?q=pharmacy+near+me";
+                    whatsAppService.sendWhatsApp(phone, msg);
                 }
             }
         }
@@ -178,20 +217,55 @@ public class MedicineService {
         User user = getUser(userEmail);
         Medicine medicine = resolveMedicine(medicineId, user);
 
-        // Prevent duplicate logs for same dose timing on same day
-        checkDuplicateLog(medicineId, doseTiming);
+        Optional<MedicineLog> existingLog = findExistingLog(medicineId, doseTiming);
+        if (existingLog.isPresent() && "PENDING".equals(existingLog.get().getStatus())
+                && "FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ConflictException(
+                    "Reminder already sent for this dose at " +
+                            doseTiming.toLowerCase() + " time. Waiting for " +
+                            medicine.getFamilyMember().getName() + " to confirm.");
+        }
 
-        MedicineLog logEntry = MedicineLog.builder()
-                .medicine(medicine)
-                .familyMember(medicine.getFamilyMember())
-                .scheduledTime(LocalDateTime.now())
-                .status("SKIPPED")
-                .doseTiming(doseTiming)
-                .notes(notes)
-                .markedBy(user)
-                .build();
+        return markSkippedInternal(medicine, doseTiming, notes, user, "APP");
+    }
 
-        medicineLogRepository.save(logEntry);
+    @Transactional
+    public MedicineLogResponse markSkippedInternal(
+            Medicine medicine, String doseTiming, String notes, User markedBy, String channel) {
+        Optional<MedicineLog> existingLog = findExistingLog(medicine.getId(), doseTiming);
+
+        MedicineLog logEntry;
+        if (existingLog.isPresent()) {
+            MedicineLog existing = existingLog.get();
+            switch (existing.getStatus()) {
+                case "PENDING" -> {
+                    existing.setStatus("SKIPPED");
+                    existing.setMarkedBy(markedBy);
+                    existing.setNotes(notes);
+                    existing.setChannel(channel);
+                    logEntry = medicineLogRepository.save(existing);
+                }
+                case "TAKEN" -> throw new CustomExceptions.ConflictException(
+                        "This dose has already been marked as taken");
+                case "SKIPPED" -> throw new CustomExceptions.ConflictException(
+                        "This dose has already been skipped");
+                default -> throw new CustomExceptions.ConflictException(
+                        "This dose was already marked as " + existing.getStatus().toLowerCase() + " for today");
+            }
+        } else {
+            logEntry = MedicineLog.builder()
+                    .medicine(medicine)
+                    .familyMember(medicine.getFamilyMember())
+                    .scheduledTime(LocalDateTime.now())
+                    .status("SKIPPED")
+                    .doseTiming(doseTiming)
+                    .notes(notes)
+                    .channel(channel)
+                    .markedBy(markedBy)
+                    .build();
+            medicineLogRepository.save(logEntry);
+        }
+
         return toLogResponse(logEntry);
     }
 
@@ -216,6 +290,46 @@ public class MedicineService {
         return toResponse(medicine);
     }
 
+    @Transactional
+    public String resendReminder(UUID medicineId, String doseTiming, String userEmail) {
+        User user = getUser(userEmail);
+        if (!"FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ForbiddenException("Only caregivers can resend reminders");
+        }
+
+        Medicine medicine = medicineRepository.findByIdAndFamilyMemberUserId(medicineId, user.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Medicine not found"));
+
+        FamilyMember member = medicine.getFamilyMember();
+        String phone = member.whatsappPhoneOrFallback();
+        if (phone == null || phone.isBlank()) {
+            throw new CustomExceptions.BadRequestException("No phone number set for " + member.getName());
+        }
+
+        String message = String.format(
+                "FamilyCare Reminder: Hi %s, please take %s (%s) - %s dose. Stay healthy!",
+                member.getName(), medicine.getName(), medicine.getDosage(), doseTiming.toLowerCase()
+        );
+
+        boolean sent = whatsAppService.sendWhatsApp(phone, message);
+
+        ReminderLog reminderLog = ReminderLog.builder()
+                .medicine(medicine)
+                .familyMember(member)
+                .channel("WHATSAPP")
+                .status(sent ? "SENT" : "FAILED")
+                .sentAt(LocalDateTime.now())
+                .message(message)
+                .build();
+        reminderLogRepository.save(reminderLog);
+
+        if (!sent) {
+            throw new CustomExceptions.BadRequestException("Failed to send WhatsApp reminder. Please try again.");
+        }
+
+        return "Reminder resent to " + member.getName() + " via WhatsApp";
+    }
+
     // --- Private helpers ---
 
     private Medicine resolveMedicine(UUID medicineId, User user) {
@@ -229,14 +343,11 @@ public class MedicineService {
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Medicine not found"));
     }
 
-    private void checkDuplicateLog(UUID medicineId, String doseTiming) {
+    private Optional<MedicineLog> findExistingLog(UUID medicineId, String doseTiming) {
         LocalDateTime dayStart = LocalDateTime.now().toLocalDate().atStartOfDay();
         LocalDateTime dayEnd = dayStart.plusDays(1);
-        medicineLogRepository.findByMedicineIdAndDoseTimingAndScheduledTimeBetween(
-                medicineId, doseTiming, dayStart, dayEnd
-        ).ifPresent(existing -> {
-            throw new CustomExceptions.ConflictException("This dose has already been recorded for today");
-        });
+        return medicineLogRepository.findByMedicineIdAndDoseTimingAndScheduledTimeBetween(
+                medicineId, doseTiming, dayStart, dayEnd);
     }
 
     private void scheduleReminders(Medicine medicine, Map<String, String> timing) {

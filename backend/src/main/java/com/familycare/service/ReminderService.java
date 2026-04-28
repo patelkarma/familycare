@@ -31,7 +31,7 @@ public class ReminderService {
             value.put("memberId", medicine.getFamilyMember().getId().toString());
             value.put("medicineName", medicine.getName());
             value.put("dosage", medicine.getDosage());
-            value.put("phone", medicine.getFamilyMember().getPhone());
+            value.put("phone", medicine.getFamilyMember().whatsappPhoneOrFallback());
             value.put("memberName", medicine.getFamilyMember().getName());
             value.put("scheduledTime", time);
             value.put("timing", timing);

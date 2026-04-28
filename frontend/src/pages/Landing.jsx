@@ -1,42 +1,50 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Pill, Shield, Users, Bell, FileText, Activity } from 'lucide-react';
-
-const features = [
-  { icon: Bell, title: 'Medicine Reminders', desc: 'WhatsApp & SMS alerts — no app install needed', color: 'bg-amber-100 text-amber-600' },
-  { icon: Users, title: 'Family Dashboard', desc: 'Track health of all family members in one place', color: 'bg-blue-100 text-blue-600' },
-  { icon: Activity, title: 'Vitals Tracking', desc: 'Monitor BP, sugar, pulse with smart alerts', color: 'bg-red-100 text-red-600' },
-  { icon: Pill, title: 'Stock Tracker', desc: 'Never run out of medicines again', color: 'bg-green-100 text-green-600' },
-  { icon: FileText, title: 'Report Locker', desc: 'All medical records safe and shareable', color: 'bg-purple-100 text-purple-600' },
-  { icon: Shield, title: 'One-tap SOS', desc: 'Emergency alert with GPS to all contacts', color: 'bg-rose-100 text-rose-600' },
-];
+import { useTranslation } from 'react-i18next';
+import ThemeToggle from '../components/shared/ThemeToggle';
+import LanguageSwitcher from '../components/shared/LanguageSwitcher';
 
 const Landing = () => {
+  const { t } = useTranslation();
+  const features = [
+    { icon: Bell, title: t('landing.feature1Title'), desc: t('landing.feature1Desc'), color: 'bg-amber-100 text-amber-600' },
+    { icon: Users, title: t('landing.feature2Title'), desc: t('landing.feature2Desc'), color: 'bg-blue-100 text-blue-600' },
+    { icon: Activity, title: t('landing.feature3Title'), desc: t('landing.feature3Desc'), color: 'bg-red-100 text-red-600' },
+    { icon: Pill, title: t('landing.feature4Title'), desc: t('landing.feature4Desc'), color: 'bg-green-100 text-green-600' },
+    { icon: FileText, title: t('landing.feature5Title'), desc: t('landing.feature5Desc'), color: 'bg-purple-100 text-purple-600' },
+    { icon: Shield, title: t('landing.feature6Title'), desc: t('landing.feature6Desc'), color: 'bg-rose-100 text-rose-600' },
+  ];
   return (
     <div className="min-h-screen bg-surface-page overflow-hidden">
       {/* Navbar */}
       <motion.nav
-        className="flex items-center justify-between px-6 lg:px-16 py-4 bg-white/70 backdrop-blur-lg sticky top-0 z-50 border-b border-gray-100"
+        className="flex items-center justify-between px-6 lg:px-16 py-4 bg-white/80 dark:bg-[rgba(11,15,26,0.85)] backdrop-blur-lg sticky top-0 z-50 border-b border-gray-100 dark:border-white/10 shadow-sm dark:shadow-black/30"
         initial={{ y: -60 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', damping: 20 }}
       >
-        <h1 className="text-2xl font-bold text-gray-900">
-          Family<span className="text-primary">Care</span>
-        </h1>
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img src="/familycare_icon.png" alt="" className="w-9 h-9 rounded-xl shadow-sm" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+            Family<span className="text-primary">Care</span>
+          </h1>
+        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher compact />
+          <ThemeToggle />
           <Link
             to="/login"
-            className="px-5 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            className="hidden sm:inline-flex px-5 py-2 text-sm font-semibold text-gray-700 dark:text-gray-100 hover:text-gray-900 dark:hover:text-white rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
-            Sign in
+            {t('auth.signIn')}
           </Link>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Link
               to="/register"
-              className="px-5 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-primary-dark transition-colors"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-primary text-white rounded-xl text-xs sm:text-sm font-semibold shadow-lg shadow-primary/25 hover:bg-primary-dark transition-colors"
             >
-              Get Started
+              {t('auth.getStarted')}
             </Link>
           </motion.div>
         </div>
@@ -86,13 +94,13 @@ const Landing = () => {
             transition={{ delay: 0.3, type: 'spring' }}
           >
             <Heart className="w-4 h-4" />
-            Caring for your family's health
+            {t('landing.tagline')}
           </motion.div>
 
           <h2 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight max-w-3xl mx-auto">
-            Your family's health,{' '}
+            {t('landing.heroLine')}{' '}
             <span className="text-primary relative">
-              one dashboard
+              {t('landing.heroEmphasis')}
               <motion.svg
                 className="absolute -bottom-2 left-0 w-full"
                 viewBox="0 0 300 12"
@@ -120,7 +128,7 @@ const Landing = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Set up medicines and reminders for your elderly parents. They get alerts on WhatsApp — no app needed.
+            {t('landing.heroSub')}
           </motion.p>
 
           <motion.div
@@ -134,7 +142,7 @@ const Landing = () => {
                 to="/register"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl text-lg font-bold shadow-xl shadow-primary/30 hover:bg-primary-dark transition-colors"
               >
-                Start Free
+                {t('landing.startFree')}
                 <motion.span
                   animate={{ x: [0, 4, 0] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
@@ -147,7 +155,7 @@ const Landing = () => {
               to="/login"
               className="inline-flex items-center gap-2 px-8 py-4 text-gray-600 hover:text-gray-900 font-medium transition-colors"
             >
-              Already have an account?
+              {t('auth.haveAccount')}
             </Link>
           </motion.div>
         </motion.div>
@@ -161,7 +169,7 @@ const Landing = () => {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          Everything your family needs
+          {t('landing.everythingTitle')}
         </motion.h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">

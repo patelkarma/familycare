@@ -6,7 +6,7 @@ import com.familycare.repository.MedicineLogRepository;
 import com.familycare.repository.MedicineRepository;
 import com.familycare.repository.ReminderLogRepository;
 import com.familycare.service.ReminderService;
-import com.familycare.service.SmsService;
+import com.familycare.service.WhatsAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,7 +23,7 @@ import java.util.UUID;
 public class ReminderScheduler {
 
     private final ReminderService reminderService;
-    private final SmsService smsService;
+    private final WhatsAppService whatsAppService;
     private final ReminderLogRepository reminderLogRepository;
     private final MedicineRepository medicineRepository;
     private final MedicineLogRepository medicineLogRepository;
@@ -54,7 +54,7 @@ public class ReminderScheduler {
                         memberName, medicineName, dosage, timing
                 );
 
-                boolean sent = smsService.sendSms(phone, message);
+                boolean sent = whatsAppService.sendWhatsApp(phone, message);
 
                 // Log the reminder
                 UUID medicineId = UUID.fromString(reminder.get("medicineId"));
@@ -64,7 +64,7 @@ public class ReminderScheduler {
                     ReminderLog reminderLog = ReminderLog.builder()
                             .medicine(medicine)
                             .familyMember(medicine.getFamilyMember())
-                            .channel("SMS")
+                            .channel("WHATSAPP")
                             .status(sent ? "SENT" : "FAILED")
                             .sentAt(LocalDateTime.now())
                             .message(message)
@@ -101,7 +101,7 @@ public class ReminderScheduler {
                 medicineLogRepository.save(pendingLog);
 
                 // Send escalation to family head
-                String familyHeadPhone = pendingLog.getFamilyMember().getUser().getPhone();
+                String familyHeadPhone = pendingLog.getFamilyMember().getUser().whatsappPhoneOrFallback();
                 if (familyHeadPhone != null && !familyHeadPhone.isBlank()) {
                     String message = String.format(
                             "FamilyCare Alert: %s missed their %s dose of %s. Please check on them.",
@@ -109,12 +109,12 @@ public class ReminderScheduler {
                             pendingLog.getDoseTiming(),
                             pendingLog.getMedicine().getName()
                     );
-                    smsService.sendSms(familyHeadPhone, message);
+                    whatsAppService.sendWhatsApp(familyHeadPhone, message);
 
                     ReminderLog escalationLog = ReminderLog.builder()
                             .medicine(pendingLog.getMedicine())
                             .familyMember(pendingLog.getFamilyMember())
-                            .channel("SMS")
+                            .channel("WHATSAPP")
                             .status("ESCALATED")
                             .sentAt(LocalDateTime.now())
                             .message(message)

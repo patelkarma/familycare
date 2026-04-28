@@ -149,6 +149,7 @@ public class ScheduleService {
         return AdherenceSummaryDTO.builder()
                 .memberId(member.getId())
                 .memberName(member.getName())
+                .memberAvatarUrl(FamilyService.resolveAvatar(member))
                 .totalExpected(totalExpected)
                 .taken(taken)
                 .missed(missed)
@@ -168,7 +169,7 @@ public class ScheduleService {
         // Index logs by medicineId + doseTiming for fast lookup
         Map<String, MedicineLog> logIndex = new HashMap<>();
         for (MedicineLog ml : dayLogs) {
-            String key = ml.getMedicine().getId() + ":" + ml.getDoseTiming();
+            String key = ml.getMedicine().getId() + ":" + ml.getDoseTiming().toLowerCase();
             logIndex.put(key, ml);
         }
 
@@ -235,6 +236,7 @@ public class ScheduleService {
                 .date(date)
                 .memberId(member.getId())
                 .memberName(member.getName())
+                .memberAvatarUrl(FamilyService.resolveAvatar(member))
                 .slots(slots)
                 .build();
     }

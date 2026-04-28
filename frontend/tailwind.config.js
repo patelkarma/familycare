@@ -1,5 +1,6 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -9,9 +10,9 @@ export default {
           light: '#FEF3DC',
         },
         surface: {
-          page: '#FAFAF8',
-          card: '#FFFFFF',
-          muted: '#F5F4F0',
+          page: 'var(--surface-page)',
+          card: 'var(--surface-card)',
+          muted: 'var(--surface-muted)',
         },
       },
       fontFamily: {

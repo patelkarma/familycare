@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Heart, Pill, Clock, Check, AlertTriangle, Sun, Cloud, Moon } from 'lucide-react';
+import { Users, Plus, Heart, Pill, Clock, Check, AlertTriangle, Sun, Cloud, Moon, FileText, Pin, ChevronRight, Calendar, PackageX, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
-import { familyApi } from '../api/family.api';
-import { scheduleApi } from '../api/schedule.api';
+import { dashboardApi } from '../api/dashboard.api';
 import { getGreeting, formatRelationship, formatDate } from '../utils/formatters';
 import Avatar from '../components/shared/Avatar';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
@@ -23,37 +23,56 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
+const formatDoctorName = (name) => {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return 'Visit';
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith('dr.') || lower.startsWith('dr ')) return trimmed;
+  return `Dr. ${trimmed}`;
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['familyMembers'],
-    queryFn: () => familyApi.getMembers(),
-  });
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? t('dashboard.greetingMorning')
+    : hour < 17 ? t('dashboard.greetingAfternoon')
+    : t('dashboard.greetingEvening');
+  const localeTag =
+    i18n.resolvedLanguage === 'hi' ? 'hi-IN'
+    : i18n.resolvedLanguage === 'gu' ? 'gu-IN'
+    : i18n.resolvedLanguage === 'mr' ? 'mr-IN'
+    : i18n.resolvedLanguage === 'bn' ? 'bn-IN'
+    : i18n.resolvedLanguage === 'ta' ? 'ta-IN'
+    : i18n.resolvedLanguage === 'te' ? 'te-IN'
+    : i18n.resolvedLanguage === 'kn' ? 'kn-IN'
+    : i18n.resolvedLanguage === 'pa' ? 'pa-IN'
+    : 'en-IN';
 
-  const members = data?.data || [];
-
-  const today = new Date().toISOString().split('T')[0];
-  const { data: overviewData } = useQuery({
-    queryKey: ['familyOverview', today],
-    queryFn: () => scheduleApi.getFamilyOverview(today),
+  const { data: summaryData, isLoading } = useQuery({
+    queryKey: ['dashboard-summary'],
+    queryFn: () => dashboardApi.getSummary(),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
   });
 
-  const familySchedules = overviewData?.data || [];
-
-  // Compute summary metrics from all slots across all members
-  const allSlots = familySchedules.flatMap((s) => s.slots || []);
-  const totalDoses = allSlots.length;
-  const takenCount = allSlots.filter((s) => s.status === 'TAKEN').length;
-  const missedCount = allSlots.filter((s) => s.status === 'MISSED').length;
-  const pendingCount = allSlots.filter((s) => s.status === 'PENDING').length;
-
-  // Count unique active medicines across all members
-  const activeMedicineIds = new Set(allSlots.map((s) => s.medicineId));
+  const summary = summaryData?.data || {};
+  const members = summary.members || [];
+  const familySchedules = summary.familySchedules || [];
+  const recentReports = summary.recentReports || [];
+  const lowStockMedicines = summary.lowStockMedicines || [];
+  const upcomingAppointments = summary.upcomingAppointments || [];
+  const alerts = summary.alerts || [];
+  const stats = summary.todayDoseStats || { total: 0, taken: 0, missed: 0, pending: 0, skipped: 0 };
+  const totalDoses = stats.total;
+  const takenCount = stats.taken;
+  const missedCount = stats.missed;
+  const pendingCount = stats.pending;
+  const activeMedicineCount = summary.activeMedicineCount || 0;
 
   if (isLoading) return <LoadingSpinner size="lg" />;
 
@@ -66,10 +85,10 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
       >
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-          {getGreeting()}, {user?.name?.split(' ')[0]}
+          {greeting}, {user?.name?.split(' ')[0]}
         </h1>
         <p className="text-gray-500 mt-1">
-          {new Date().toLocaleDateString('en-IN', {
+          {new Date().toLocaleDateString(localeTag, {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
@@ -77,6 +96,41 @@ const Dashboard = () => {
           })}
         </p>
       </motion.div>
+
+      {/* Alerts banner */}
+      {alerts.length > 0 && (
+        <motion.div
+          className="space-y-2"
+          variants={container}
+          initial="hidden"
+          animate="show"
+        >
+          {alerts.slice(0, 4).map((alert, idx) => {
+            // Missed doses always read as a red alert (yellow is reserved for "pending"
+            // throughout the app) — distinct from severity, which only drives wording.
+            const palette =
+              alert.type === 'MISSED_DOSE' || alert.severity === 'CRITICAL'
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : alert.severity === 'WARNING'
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-blue-50 border-blue-200 text-blue-800';
+            const Icon =
+              alert.type === 'LOW_STOCK' ? PackageX :
+              alert.type === 'MISSED_DOSE' ? AlertTriangle :
+              alert.type === 'UPCOMING_APPOINTMENT' ? Calendar : AlertTriangle;
+            return (
+              <motion.div
+                key={`${alert.type}-${idx}`}
+                variants={item}
+                className={`flex items-center gap-3 border rounded-xl px-4 py-3 text-sm font-medium ${palette}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{alert.message}</span>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* Quick stats */}
       <motion.div
@@ -86,10 +140,10 @@ const Dashboard = () => {
         animate="show"
       >
         {[
-          { label: 'Family Members', value: members.length, icon: Users, color: 'bg-blue-500', to: '/family' },
-          { label: 'Active Medicines', value: activeMedicineIds.size, icon: Pill, color: 'bg-green-500', to: '/medicines' },
-          { label: 'Doses Today', value: totalDoses, icon: Clock, color: 'bg-amber-500', to: '/doses-today' },
-          { label: 'Vitals Logged', value: '—', icon: Heart, color: 'bg-rose-500', to: '/vitals' },
+          { label: t('dashboard.familyMembers'), value: summary.memberCount ?? members.length, icon: Users, color: 'bg-blue-500', to: '/family' },
+          { label: t('dashboard.activeMedicines'), value: activeMedicineCount, icon: Pill, color: 'bg-green-500', to: '/medicines' },
+          { label: t('dashboard.dosesToday'), value: totalDoses, icon: Clock, color: 'bg-amber-500', to: '/doses-today' },
+          { label: t('dashboard.vitalsLogged'), value: '—', icon: Heart, color: 'bg-rose-500', to: '/vitals' },
         ].map((stat) => (
           <motion.div
             key={stat.label}
@@ -116,16 +170,16 @@ const Dashboard = () => {
       {familySchedules.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-gray-900">Today&apos;s Dose Summary</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('dashboard.todaysDoseSummary')}</h2>
             <div className="flex items-center gap-3 text-xs font-medium">
               <span className="flex items-center gap-1 text-green-600">
-                <Check className="w-3.5 h-3.5" /> {takenCount} taken
+                <Check className="w-3.5 h-3.5" /> {takenCount} {t('dashboard.taken')}
               </span>
               <span className="flex items-center gap-1 text-red-500">
-                <AlertTriangle className="w-3.5 h-3.5" /> {missedCount} missed
+                <AlertTriangle className="w-3.5 h-3.5" /> {missedCount} {t('dashboard.missed')}
               </span>
               <span className="flex items-center gap-1 text-amber-500">
-                <Clock className="w-3.5 h-3.5" /> {pendingCount} pending
+                <Clock className="w-3.5 h-3.5" /> {pendingCount} {t('dashboard.pending')}
               </span>
             </div>
           </div>
@@ -191,7 +245,7 @@ const Dashboard = () => {
                   {/* Member header */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <Avatar name={schedule.memberName} size="md" />
+                      <Avatar name={schedule.memberName} imageUrl={schedule.memberAvatarUrl} size="md" />
                       <div>
                         <h3 className="font-semibold text-gray-900 group-hover:text-primary transition-colors">
                           {schedule.memberName}
@@ -256,6 +310,172 @@ const Dashboard = () => {
                 </motion.div>
               );
             })}
+          </motion.div>
+        </div>
+      )}
+
+      {/* Low stock + Upcoming appointments */}
+      {(lowStockMedicines.length > 0 || upcomingAppointments.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {lowStockMedicines.length > 0 && (
+            <motion.div
+              className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <PackageX className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base font-bold text-gray-900">Low Stock</h2>
+                </div>
+                <motion.button
+                  onClick={() => navigate('/pharmacy')}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark"
+                  whileHover={{ x: 3 }}
+                >
+                  <MapPin className="w-3.5 h-3.5" /> Find pharmacy
+                </motion.button>
+              </div>
+              <ul className="space-y-2">
+                {lowStockMedicines.slice(0, 5).map((m) => (
+                  <li
+                    key={m.medicineId}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-amber-50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{m.medicineName}</p>
+                      <p className="text-xs text-gray-400 truncate">{m.memberName}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                      m.stockCount === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {m.stockCount === 0 ? 'Out' : `${m.stockCount} left`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+
+          {upcomingAppointments.length > 0 && (
+            <motion.div
+              className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base font-bold text-gray-900">Upcoming Appointments</h2>
+                </div>
+                <motion.button
+                  onClick={() => navigate('/appointments')}
+                  className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark"
+                  whileHover={{ x: 3 }}
+                >
+                  View all <ChevronRight className="w-3.5 h-3.5" />
+                </motion.button>
+              </div>
+              <ul className="space-y-2">
+                {upcomingAppointments.slice(0, 4).map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                    onClick={() => navigate('/appointments')}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {formatDoctorName(a.doctorName)} <span className="text-gray-400 font-normal">· {a.familyMemberName}</span>
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {a.speciality || a.hospital || 'Checkup'}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded-full whitespace-nowrap">
+                      {new Date(a.appointmentDate).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short',
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* Recent Reports */}
+      {user?.role !== 'MEMBER' && recentReports.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-bold text-gray-900">Recent Reports</h2>
+            <motion.button
+              onClick={() => navigate('/reports')}
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+              whileHover={{ x: 4 }}
+            >
+              View all
+              <ChevronRight className="w-4 h-4" />
+            </motion.button>
+          </div>
+
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+            variants={container}
+            initial="hidden"
+            animate="show"
+          >
+            {recentReports.map((report) => (
+              <motion.div
+                key={report.id}
+                className="relative bg-white rounded-2xl p-4 shadow-sm border border-gray-50 cursor-pointer group"
+                variants={item}
+                whileHover={{ y: -4, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate('/reports')}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                {report.isPinnedForEmergency && (
+                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <Pin className="w-3 h-3" />
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary-light flex items-center justify-center shrink-0 overflow-hidden">
+                    {report.fileType !== 'PDF' && report.thumbnailUrl ? (
+                      <img
+                        src={report.thumbnailUrl}
+                        alt={report.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FileText className="w-6 h-6 text-primary-dark" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 truncate group-hover:text-primary transition-colors">
+                      {report.title}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-[10px] font-semibold bg-primary-light text-primary-dark rounded-full px-2 py-0.5">
+                        {report.familyMemberName}
+                      </span>
+                      <span className="text-[10px] font-semibold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                        {report.reportType}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      {formatDate(report.reportDate)}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
       )}
@@ -325,11 +545,11 @@ const Dashboard = () => {
                 <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-4">
                   <div className="flex items-center gap-1.5 text-xs text-gray-400">
                     <Pill className="w-3.5 h-3.5" />
-                    <span>No meds yet</span>
+                    <span>{t('dashboard.noMedicinesYet')}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-gray-400">
                     <Heart className="w-3.5 h-3.5" />
-                    <span>No vitals</span>
+                    <span>{t('emptyDesc.noVitalsYet')}</span>
                   </div>
                 </div>
               </motion.div>

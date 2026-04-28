@@ -14,7 +14,20 @@
       "Bash(xargs grep:*)",
       "Bash(find D:/familycare/frontend/src/components -type d -name *)",
       "Bash(mvn compile:*)",
-      "Bash(grep -n \"getFamilyOverview\\\\|getMemberDaily\\\\|getMyDaily\" /d/familycare/frontend/src/pages/*.jsx)"
+      "Bash(grep -n \"getFamilyOverview\\\\|getMemberDaily\\\\|getMyDaily\" /d/familycare/frontend/src/pages/*.jsx)",
+      "WebFetch(domain:search.maven.org)",
+      "Bash(./mvnw -U dependency:resolve -q)",
+      "Bash(./mvnw -U -q compile)",
+      "Bash(./mvnw -U compile)",
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(xargs basename *)",
+      "Bash(git *)",
+      "Bash(./mvnw clean *)",
+      "Bash(npm run *)",
+      "Bash(./mvnw -q compile)",
+      "Bash(./mvnw -q clean compile)",
+      "Bash(npx eslint *)"
     ]
   }
 }

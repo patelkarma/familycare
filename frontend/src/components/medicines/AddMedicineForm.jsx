@@ -16,8 +16,10 @@ import {
   Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { medicineSchema } from '../../utils/validators';
 import { medicinesApi } from '../../api/medicines.api';
+import InteractionWarning from './InteractionWarning';
 
 const forms = [
   { value: 'Tablet', icon: '💊', label: 'Tablet' },
@@ -47,6 +49,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const isEditing = !!medicine;
 
   const {
@@ -79,6 +82,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
   });
 
   const selectedForm = watch('form');
+  const watchedName = watch('name');
 
   const mutation = useMutation({
     mutationFn: (data) => {
@@ -107,11 +111,11 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['medicines', memberId] });
-      toast.success(isEditing ? 'Medicine updated!' : 'Medicine added!');
+      toast.success(t('toast.medicineSaved'));
       onClose();
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || 'Something went wrong');
+      toast.error(err.response?.data?.message || t('toast.somethingWrong'));
     },
   });
 
@@ -202,18 +206,21 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                   className="space-y-5"
                 >
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Medicine Name *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.medicineName')} *</label>
                     <input
                       type="text"
                       {...register('name')}
-                      placeholder="e.g., Amlodipine"
+                      placeholder={t('medicineForm.medicineNamePlaceholder')}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                     />
-                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{t(errors.name.message, errors.name.message)}</p>}
+                    {!isEditing && memberId && (
+                      <InteractionWarning memberId={memberId} drugName={watchedName} />
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Generic Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.genericName')}</label>
                     <input
                       type="text"
                       {...register('genericName')}
@@ -223,7 +230,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Medicine Type</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('medicineForm.form')}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {forms.map((f) => (
                         <motion.button
@@ -260,37 +267,39 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                   className="space-y-5"
                 >
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Dosage *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.dosage')} *</label>
                     <input
                       type="text"
                       {...register('dosage')}
-                      placeholder="e.g., 5mg, 1 tablet, 10ml"
+                      placeholder={t('medicineForm.dosagePlaceholder')}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                     />
-                    {errors.dosage && <p className="text-red-500 text-xs mt-1">{errors.dosage.message}</p>}
+                    {errors.dosage && <p className="text-red-500 text-xs mt-1">{t(errors.dosage.message, errors.dosage.message)}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Frequency *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.frequency')} *</label>
                     <select
                       {...register('frequency')}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
                     >
-                      <option value="">Select frequency</option>
+                      <option value="">{t('medicineForm.selectFrequency')}</option>
                       {frequencies.map((f) => (
                         <option key={f} value={f}>{f}</option>
                       ))}
                     </select>
-                    {errors.frequency && <p className="text-red-500 text-xs mt-1">{errors.frequency.message}</p>}
+                    {errors.frequency && <p className="text-red-500 text-xs mt-1">{t(errors.frequency.message, errors.frequency.message)}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Reminder Times</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('medicineForm.morningTime')} / {t('medicineForm.afternoonTime')} / {t('medicineForm.nightTime')}
+                    </label>
                     <div className="space-y-3">
                       {[
-                        { key: 'morning', icon: Sun, label: 'Morning', color: 'text-amber-500', default: '09:00' },
-                        { key: 'afternoon', icon: Cloud, label: 'Afternoon', color: 'text-sky-500', default: '13:00' },
-                        { key: 'night', icon: Moon, label: 'Night', color: 'text-indigo-500', default: '21:00' },
+                        { key: 'morning', icon: Sun, label: t('medicineForm.morningTime'), color: 'text-amber-500', default: '09:00' },
+                        { key: 'afternoon', icon: Cloud, label: t('medicineForm.afternoonTime'), color: 'text-sky-500', default: '13:00' },
+                        { key: 'night', icon: Moon, label: t('medicineForm.nightTime'), color: 'text-indigo-500', default: '21:00' },
                       ].map((t) => (
                         <div key={t.key} className="flex items-center gap-3">
                           <t.icon className={`w-5 h-5 ${t.color}`} />
@@ -312,7 +321,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                       {...register('withFood')}
                       className="w-5 h-5 rounded-md border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="text-sm font-medium text-gray-700">Take with food</span>
+                    <span className="text-sm font-medium text-gray-700">{t('medicineForm.withFood')}</span>
                   </label>
                 </motion.div>
               )}
@@ -331,7 +340,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                 >
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.startDate')}</label>
                       <input
                         type="date"
                         {...register('startDate')}
@@ -339,7 +348,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">End Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.endDate')}</label>
                       <input
                         type="date"
                         {...register('endDate')}
@@ -349,7 +358,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Stock Count (doses)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.stockCount')}</label>
                     <input
                       type="number"
                       {...register('stockCount')}
@@ -361,10 +370,10 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.notes')}</label>
                     <textarea
                       {...register('notes')}
-                      placeholder="Any special instructions..."
+                      placeholder={t('medicineForm.notesPlaceholder')}
                       rows={3}
                       className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
                     />
@@ -384,7 +393,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                 whileTap={{ scale: 0.97 }}
               >
                 <ChevronLeft className="w-4 h-4" />
-                Back
+                {t('common.back')}
               </motion.button>
             )}
 

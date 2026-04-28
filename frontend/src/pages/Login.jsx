@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { loginSchema } from '../utils/validators';
 import { authApi } from '../api/auth.api';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +15,7 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useTranslation();
 
   const {
     register,
@@ -26,10 +28,10 @@ const Login = () => {
     try {
       const res = await authApi.login(data);
       login(res.data);
-      toast.success('Welcome back!');
+      toast.success(t('auth.welcome'));
       navigate(res.data.role === 'MEMBER' ? '/my-medicines' : '/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid credentials');
+      toast.error(err.response?.data?.message || t('toast.somethingWrong'));
     } finally {
       setIsSubmitting(false);
     }
@@ -57,15 +59,22 @@ const Login = () => {
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/">
+          <Link to="/" className="inline-flex flex-col items-center gap-3">
+            <motion.img
+              src="/familycare_icon.png"
+              alt="FamilyCare"
+              className="w-16 h-16 rounded-2xl shadow-lg"
+              whileHover={{ scale: 1.05, rotate: -3 }}
+              transition={{ type: 'spring', stiffness: 280 }}
+            />
             <motion.h1
-              className="text-3xl font-bold text-gray-900 mb-2"
+              className="text-3xl font-bold text-gray-900"
               whileHover={{ scale: 1.02 }}
             >
               Family<span className="text-primary">Care</span>
             </motion.h1>
           </Link>
-          <p className="text-gray-500">Welcome back! Sign in to continue.</p>
+          <p className="text-gray-500 mt-2">{t('auth.welcomeBack')}</p>
         </div>
 
         {/* Card */}
@@ -78,7 +87,7 @@ const Login = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('auth.email')}</label>
               <motion.input
                 type="email"
                 {...register('email')}
@@ -92,14 +101,14 @@ const Login = () => {
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  {errors.email.message}
+                  {t(errors.email.message, errors.email.message)}
                 </motion.p>
               )}
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('auth.password')}</label>
               <div className="relative">
                 <motion.input
                   type={showPassword ? 'text' : 'password'}
@@ -122,7 +131,7 @@ const Login = () => {
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  {errors.password.message}
+                  {t(errors.password.message, errors.password.message)}
                 </motion.p>
               )}
             </div>
@@ -144,7 +153,7 @@ const Login = () => {
               ) : (
                 <>
                   <LogIn className="w-5 h-5" />
-                  Sign In
+                  {t('auth.signIn')}
                 </>
               )}
             </motion.button>
@@ -158,9 +167,9 @@ const Login = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          Don't have an account?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/register" className="text-primary font-semibold hover:text-primary-dark transition-colors">
-            Sign up free
+            {t('auth.signUpFree')}
           </Link>
         </motion.p>
       </motion.div>

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Pill,
   Sun,
   Cloud,
   Moon,
@@ -13,8 +13,11 @@ import {
   Package,
   AlertTriangle,
   Clock,
+  MessageSquare,
+  MapPin,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { medicinesApi } from '../../api/medicines.api';
 
 const formIcons = {
@@ -43,48 +46,31 @@ const timingConfig = {
   night: { icon: Moon, label: 'Night', color: 'bg-indigo-100 text-indigo-700' },
 };
 
-const doseStatusDot = {
-  TAKEN: 'bg-green-500',
-  PENDING: 'bg-amber-400',
-  MISSED: 'bg-red-500',
-  SKIPPED: 'bg-gray-400',
-};
 
 const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} }) => {
-  const [showSuccess, setShowSuccess] = useState(false);
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const [resendingTiming, setResendingTiming] = useState(null);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['medicines', memberId] });
     queryClient.invalidateQueries({ queryKey: ['memberSchedule', memberId] });
     queryClient.invalidateQueries({ queryKey: ['familyOverview'] });
     queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
   };
 
-  const takenMutation = useMutation({
+  const resendMutation = useMutation({
     mutationFn: ({ timing }) =>
-      medicinesApi.markTaken(medicine.id, { doseTiming: timing, notes: '' }),
+      medicinesApi.resendReminder(medicine.id, timing),
     onSuccess: () => {
+      setResendingTiming(null);
       invalidateAll();
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-      toast.success('Dose marked as taken!');
+      toast.success(t('toast.saved'));
     },
     onError: (err) => {
-      const msg = err.response?.data?.message || 'Failed to mark dose';
-      toast.error(msg);
-    },
-  });
-
-  const skippedMutation = useMutation({
-    mutationFn: ({ timing }) =>
-      medicinesApi.markSkipped(medicine.id, { doseTiming: timing, notes: '' }),
-    onSuccess: () => {
-      invalidateAll();
-      toast('Dose skipped', { icon: '⏭️' });
-    },
-    onError: (err) => {
-      const msg = err.response?.data?.message || 'Failed to skip dose';
+      setResendingTiming(null);
+      const msg = err.response?.data?.message || 'Failed to resend reminder';
       toast.error(msg);
     },
   });
@@ -110,34 +96,11 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
 
   return (
     <motion.div
-      className={`bg-white rounded-2xl p-5 shadow-sm border-2 transition-colors relative overflow-hidden ${
-        showSuccess ? 'border-green-300' : 'border-gray-50 hover:border-primary-light'
-      }`}
+      className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-50 hover:border-primary-light transition-colors relative overflow-hidden"
       layout
       whileHover={{ y: -6 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
     >
-      {/* Success overlay */}
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            className="absolute inset-0 bg-green-50/90 flex items-center justify-center z-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400 }}
-            >
-              <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
-                <Check className="w-8 h-8 text-white" strokeWidth={3} />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Header */}
       <div className="flex items-start gap-4 mb-4">
@@ -283,50 +246,121 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
             transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </div>
+        {(isLowStock || isOutOfStock) && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-2"
+          >
+            <Link
+              to="/pharmacy"
+              className="inline-flex items-center gap-1.5 text-xs bg-primary-light text-primary-dark px-2.5 py-1 rounded-full font-semibold hover:bg-primary hover:text-white transition-colors"
+            >
+              <MapPin className="w-3 h-3" />
+              Find pharmacy nearby
+            </Link>
+          </motion.div>
+        )}
       </div>
 
-      {/* Quick actions */}
-      <div className="flex gap-2">
-        <motion.button
-          onClick={() => {
-            const currentTiming = nextDose || (activeTimings[0] && activeTimings[0][0]) || 'MORNING';
-            takenMutation.mutate({ timing: currentTiming.toUpperCase() });
-          }}
-          disabled={takenMutation.isPending}
-          className="flex-1 flex items-center justify-center gap-2 bg-primary text-white rounded-xl px-4 py-3 font-semibold text-sm shadow-lg shadow-primary/20 hover:bg-primary-dark transition-colors disabled:opacity-60"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          {takenMutation.isPending ? (
-            <motion.div
-              className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            />
-          ) : (
-            <>
-              <Check className="w-4 h-4" />
-              Take Now
-            </>
-          )}
-        </motion.button>
-        <motion.button
-          onClick={() => {
-            const currentTiming = nextDose || (activeTimings[0] && activeTimings[0][0]) || 'MORNING';
-            skippedMutation.mutate({ timing: currentTiming.toUpperCase() });
-          }}
-          disabled={skippedMutation.isPending}
-          className="px-4 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-60"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          <SkipForward className="w-4 h-4" />
-        </motion.button>
-      </div>
+      {/* Today's dose status timeline */}
+      {activeTimings.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Today's Doses</p>
+          {activeTimings.map(([key, time]) => {
+            const config = timingConfig[key];
+            if (!config) return null;
+            const Icon = config.icon;
+            const slotData = doseStatuses[key];
+            const status = slotData?.status;
+
+            return (
+              <motion.div
+                key={key}
+                className="flex items-center justify-between py-2 border-t border-gray-50 first:border-t-0"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className="w-4 h-4 text-gray-400 shrink-0" />
+                  <span className="text-sm font-medium text-gray-700">{config.label}</span>
+
+                  {status === 'TAKEN' && (
+                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                      <Check className="w-3 h-3" />
+                      Taken{slotData.takenAt && ` at ${new Date(slotData.takenAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`}
+                      {slotData.markedByName && <span className="text-gray-400">by {slotData.markedByName}</span>}
+                    </span>
+                  )}
+
+                  {status === 'PENDING' && (
+                    <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+                      <motion.span
+                        className="w-2 h-2 rounded-full bg-amber-400"
+                        animate={{ opacity: [1, 0.4, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                      Reminder sent - Awaiting
+                    </span>
+                  )}
+
+                  {status === 'MISSED' && (
+                    <span className="flex items-center gap-1 text-xs text-red-500 font-medium">
+                      <AlertTriangle className="w-3 h-3" />
+                      Missed - No response
+                    </span>
+                  )}
+
+                  {status === 'SKIPPED' && (
+                    <span className="flex items-center gap-1 text-xs text-gray-400 font-medium">
+                      <SkipForward className="w-3 h-3" />
+                      Skipped
+                    </span>
+                  )}
+
+                  {!status && (
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <Clock className="w-3 h-3" />
+                      Scheduled at {time}
+                    </span>
+                  )}
+                </div>
+
+                {/* Resend button for PENDING or MISSED */}
+                {(status === 'PENDING' || status === 'MISSED') && (
+                  <motion.button
+                    onClick={() => {
+                      setResendingTiming(key.toUpperCase());
+                      resendMutation.mutate({ timing: key.toUpperCase() });
+                    }}
+                    disabled={resendingTiming !== null}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50 shrink-0"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    title={t('common.continue')}
+                  >
+                    {resendingTiming === key.toUpperCase() ? (
+                      <motion.div
+                        className="w-3 h-3 border-2 border-green-300 border-t-green-700 rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      />
+                    ) : (
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    )}
+                    Resend
+                  </motion.button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {/* With food note */}
       {medicine.withFood && (
-        <p className="text-xs text-gray-400 mt-3 text-center">Take with food</p>
+        <p className="text-xs text-gray-400 mt-3 text-center">{t('medicineForm.withFood')}</p>
       )}
     </motion.div>
   );
