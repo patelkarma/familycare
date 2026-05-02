@@ -19,6 +19,12 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${jwt.secret}") String secret,
                    @Value("${jwt.expiration}") long expiration) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET environment variable is required.");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be at least 256 bits (32 chars).");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
     }
