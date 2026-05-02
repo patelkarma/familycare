@@ -21,14 +21,15 @@ These are the features that make this project unique. Every feature must work in
 
 | # | Feature | What makes it unique |
 |---|---|---|
-| 1 | Medicine reminder via WhatsApp + SMS | Elderly parent needs zero tech skills — reminder arrives on basic phone |
+| 1 | Medicine reminder via WhatsApp | Elderly parent needs zero tech skills — reminder arrives on WhatsApp |
 | 2 | Prescription OCR scanner | Photo of prescription → medicines auto-filled, no typing |
 | 3 | Family health dashboard | One view for ALL family members — not just one person |
-| 4 | Vitals trend alert | Detects dangerous patterns (3 high BP readings) → auto SMS to family |
-| 5 | Medicine stock tracker + pharmacy finder |
- Low stock → SMS alert + Google Maps pharmacy link |
+| 4 | Vitals trend alert | Detects dangerous patterns (3 high BP readings) → auto WhatsApp to family |
+| 5 | Medicine stock tracker + pharmacy finder | Low stock → WhatsApp alert + Google Maps pharmacy link |
 | 6 | Medical report locker | All prescriptions, reports, X-rays stored and shareable |
 | 7 | One-tap SOS | Button → WhatsApp to all emergency contacts with GPS + medicine list |
+
+> **Note on SMS:** The original spec planned a dual WhatsApp + Fast2SMS pipeline. The current implementation is **WhatsApp-only** via Twilio. Adding Fast2SMS as a fallback channel is on the roadmap but not yet shipped.
 
 ---
 
@@ -61,8 +62,8 @@ This stack is fixed. Do not suggest replacing any part of it.
 - **Primary DB:** PostgreSQL on Supabase
 - **Job queue / cache:** Redis on Upstash
 - **File storage:** Cloudinary
-- **SMS:** Fast2SMS (India)
-- **WhatsApp:** Twilio Sandbox API
+- **WhatsApp:** Twilio Sandbox API (primary reminder channel)
+- **SMS:** _planned via Fast2SMS — not yet implemented_
 
 ---
 
@@ -75,7 +76,7 @@ This stack is fixed. Do not suggest replacing any part of it.
 | PostgreSQL | Supabase | 500MB free, never expires |
 | Redis | Upstash | 10k commands/day free |
 | Files (images/PDFs) | Cloudinary | 25GB free |
-| SMS | Fast2SMS | India-specific, cheap |
+| SMS | _Fast2SMS — planned, not yet wired_ | India-specific, cheap |
 | WhatsApp | Twilio | Sandbox for dev/demo |
 
 **Do not suggest AWS, GCP, Heroku, Firebase, or any paid hosting.**
@@ -368,7 +369,7 @@ JWT_SECRET_KEY
 CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
-FAST2SMS_API_KEY
+# FAST2SMS_API_KEY  -- reserved for future SMS fallback, not used yet
 TWILIO_ACCOUNT_SID
 TWILIO_AUTH_TOKEN
 FRONTEND_URL
@@ -393,7 +394,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET
    - Value: JSON with phone, medicine name, dosage, scheduled time
 4. `ReminderScheduler.java` has `@Scheduled(cron = "0 * * * * *")` — runs every minute
 5. Checks Redis for reminders due in current minute
-6. Calls `SmsService` (Fast2SMS) and `WhatsAppService` (Twilio)
+6. Calls `WhatsAppService` (Twilio). _SMS fallback via Fast2SMS is planned but not implemented._
 7. If no "mark taken" in 30 mins → `AlertService` sends escalation to family head
 
 ### Vitals Alert Logic
@@ -578,7 +579,7 @@ Update this section as features are completed.
 
 [ ] Week 2 — Reminders & Vitals
     [ ] Day 8: Redis reminder scheduler
-    [ ] Day 9: Fast2SMS integration
+    [ ] Day 9: Fast2SMS integration (deferred — WhatsApp-only for now)
     [ ] Day 10: WhatsApp (Twilio) integration
     [ ] Day 11: Vitals tracking APIs
     [ ] Day 12: Smart vitals alert engine

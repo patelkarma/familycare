@@ -26,14 +26,11 @@ jobs:
       - name: Compile
         run: ./mvnw -B compile
 
-      - name: Test
+      - name: Unit tests
         run: ./mvnw -B test
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/dummy
-          SPRING_DATASOURCE_USERNAME: dummy
-          SPRING_DATASOURCE_PASSWORD: dummy
-          SPRING_DATA_REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ci-only-secret-key-minimum-256-bits-long-key-here-please-do-not-use-in-prod
+
+      - name: Integration tests (Testcontainers)
+        run: ./mvnw -B test -Pintegration -Dtest='*IntegrationTest'
 
       - name: Package
         run: ./mvnw -B package -DskipTests
@@ -59,6 +56,9 @@ jobs:
 
       - name: Lint
         run: npm run lint --if-present
+
+      - name: Test
+        run: npm test --if-present
 
       - name: Build
         run: npm run build
