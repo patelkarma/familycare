@@ -5,6 +5,7 @@ import com.familycare.dto.request.RegisterRequest;
 import com.familycare.dto.response.ApiResponse;
 import com.familycare.dto.response.AuthResponse;
 import com.familycare.dto.response.UserResponse;
+import com.familycare.exception.CustomExceptions;
 import com.familycare.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,12 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(Authentication authentication) {
+        // /api/auth/** is in the security permitAll list (so /login and /register can be
+        // public), which means an unauthenticated request reaches this method. Reject
+        // with a clean 401 instead of NPE-ing on authentication.getName().
+        if (authentication == null) {
+            throw new CustomExceptions.UnauthorizedException("Authentication required");
+        }
         UserResponse response = authService.getCurrentUser(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -55,6 +62,9 @@ public class AuthController {
     @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserResponse>> updateMyAvatar(
             @RequestPart("file") MultipartFile file, Authentication authentication) {
+        if (authentication == null) {
+            throw new CustomExceptions.UnauthorizedException("Authentication required");
+        }
         UserResponse response = authService.updateAvatar(file, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(response, "Profile photo updated"));
     }

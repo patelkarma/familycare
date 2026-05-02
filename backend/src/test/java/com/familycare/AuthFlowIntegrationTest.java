@@ -133,9 +133,12 @@ class AuthFlowIntegrationTest {
         assertThat(meData).containsEntry("name", "Karma Patel");
 
         // --- 4. /me WITHOUT a token must be rejected ---------------------
+        // /api/auth/** is in the security permitAll list (so /login/register stay public),
+        // so the controller itself returns 401 via UnauthorizedException, not Spring
+        // Security's 403. Either way it must not 500 or leak data.
         ResponseEntity<String> unauthResp = http.getForEntity(
                 url("/api/auth/me"), String.class);
-        assertThat(unauthResp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(unauthResp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
