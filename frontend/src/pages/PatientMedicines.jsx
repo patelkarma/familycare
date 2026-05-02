@@ -8,7 +8,8 @@ import { scheduleApi } from '../api/schedule.api';
 import { medicinesApi } from '../api/medicines.api';
 import { sosApi } from '../api/sos.api';
 import { useAuth } from '../hooks/useAuth';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import DoseSkeleton from '../components/shared/DoseSkeleton';
+import ErrorState from '../components/shared/ErrorState';
 import SOSButton from '../components/sos/SOSButton';
 import SOSCountdownModal from '../components/sos/SOSCountdownModal';
 import SOSResultModal from '../components/sos/SOSResultModal';
@@ -51,13 +52,34 @@ const PatientMedicines = () => {
   const [showCountdown, setShowCountdown] = useState(false);
   const [triggerResult, setTriggerResult] = useState(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['mySchedule', today],
     queryFn: () => scheduleApi.getMyDaily(today),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
   });
+
+  // Helper used by both mark-taken and mark-skipped to flip a slot's status
+  // in the cached query data without waiting for the server round-trip.
+  // Marking a dose taken on a phone in a clinic with bad signal should feel
+  // instant — the rollback path covers the rare failure case.
+  const applyOptimisticStatus = ({ medicineId, doseTiming, status }) => {
+    queryClient.setQueryData(['mySchedule', today], (cached) => {
+      if (!cached?.data?.slots) return cached;
+      return {
+        ...cached,
+        data: {
+          ...cached.data,
+          slots: cached.data.slots.map((s) =>
+            s.medicineId === medicineId && s.timingKey === doseTiming
+              ? { ...s, status, takenAt: status === 'TAKEN' ? new Date().toISOString() : s.takenAt }
+              : s
+          ),
+        },
+      };
+    });
+  };
 
   const { data: contactsData } = useQuery({
     queryKey: ['sos-contacts', user?.familyMemberId],
@@ -88,39 +110,74 @@ const PatientMedicines = () => {
   const markTakenMutation = useMutation({
     mutationFn: ({ medicineId, doseTiming }) =>
       medicinesApi.markTaken(medicineId, { doseTiming, notes: '' }),
+    onMutate: async ({ medicineId, doseTiming }) => {
+      // Cancel any in-flight refetch so it doesn't overwrite our optimistic update.
+      await queryClient.cancelQueries({ queryKey: ['mySchedule', today] });
+      const previous = queryClient.getQueryData(['mySchedule', today]);
+      applyOptimisticStatus({ medicineId, doseTiming, status: 'TAKEN' });
+      return { previous };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
       toast.success(t('status.doseTaken'));
       setActioningSlot(null);
     },
-    onError: (err) => {
+    onError: (err, _vars, context) => {
+      // Roll back to the snapshot we took in onMutate.
+      if (context?.previous) {
+        queryClient.setQueryData(['mySchedule', today], context.previous);
+      }
       const msg = err.response?.data?.message || 'Failed to mark dose';
       toast.error(msg);
       setActioningSlot(null);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
     },
   });
 
   const markSkippedMutation = useMutation({
     mutationFn: ({ medicineId, doseTiming }) =>
       medicinesApi.markSkipped(medicineId, { doseTiming, notes: '' }),
+    onMutate: async ({ medicineId, doseTiming }) => {
+      await queryClient.cancelQueries({ queryKey: ['mySchedule', today] });
+      const previous = queryClient.getQueryData(['mySchedule', today]);
+      applyOptimisticStatus({ medicineId, doseTiming, status: 'SKIPPED' });
+      return { previous };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
       toast.success(t('status.doseSkipped'));
       setActioningSlot(null);
     },
-    onError: (err) => {
+    onError: (err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['mySchedule', today], context.previous);
+      }
       const msg = err.response?.data?.message || 'Failed to skip dose';
       toast.error(msg);
       setActioningSlot(null);
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
+    },
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24 lg:pb-6">
+        <DoseSkeleton rows={3} />
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-red-500">Failed to load schedule. Please try again.</p>
+      <div className="max-w-2xl mx-auto px-4 py-12 pb-24 lg:pb-6">
+        <ErrorState
+          title="Could not load today's doses"
+          description="Check your connection and try again. Your previously marked doses are safe."
+          onRetry={() => refetch()}
+          retryLabel="Try again"
+        />
       </div>
     );
   }

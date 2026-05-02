@@ -21,6 +21,8 @@ import { useTranslation } from 'react-i18next';
 import { scheduleApi } from '../api/schedule.api';
 import Avatar from '../components/shared/Avatar';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+import DoseSkeleton from '../components/shared/DoseSkeleton';
+import ErrorState from '../components/shared/ErrorState';
 import EmptyState from '../components/shared/EmptyState';
 
 const container = {
@@ -61,7 +63,7 @@ const DosesToday = () => {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-  const { data: overviewData, isLoading } = useQuery({
+  const { data: overviewData, isLoading, error: overviewError, refetch } = useQuery({
     queryKey: ['familyOverview', today],
     queryFn: () => scheduleApi.getFamilyOverview(today),
     staleTime: 30_000,
@@ -85,7 +87,25 @@ const DosesToday = () => {
   const missedCount = allSlots.filter((s) => s.status === 'MISSED').length;
   const pendingCount = allSlots.filter((s) => s.status === 'PENDING').length;
 
-  if (isLoading) return <LoadingSpinner size="lg" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <DoseSkeleton rows={3} />
+      </div>
+    );
+  }
+
+  if (overviewError) {
+    return (
+      <ErrorState
+        title="Could not load today's doses"
+        description="Check your connection and try again. Your data is safe."
+        onRetry={() => refetch()}
+        retryLabel="Try again"
+      />
+    );
+  }
 
   return (
     <div className="space-y-8">

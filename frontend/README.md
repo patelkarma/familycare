@@ -1,16 +1,28 @@
-# React + Vite
+# FamilyCare Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite SPA. Talks to the Spring Boot backend at `VITE_API_BASE_URL`.
 
-Currently, two official plugins are available:
+See the [project README](../README.md) for the overall architecture.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
 
-## React Compiler
+```bash
+npm install      # install deps
+npm run dev      # start Vite dev server (http://localhost:5173)
+npm run build    # production build to ./dist
+npm run preview  # preview the production build locally
+npm run lint     # eslint
+npm test         # vitest
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Environment
 
-## Expanding the ESLint configuration
+Copy `.env.example` to `.env`:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+VITE_API_BASE_URL=http://localhost:8080/api
+```
+
+## Stack
+
+TanStack Query · React Hook Form + Zod · Tailwind · React Router v7 · Recharts · Tesseract.js · Framer Motion · Leaflet
