@@ -117,7 +117,6 @@ const Reports = () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['reports-recent'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
-      const pinned = res?.data?.isPinnedForEmergency;
       toast.success(t('toast.saved'));
       if (viewing && res?.data) setViewing(res.data);
     },

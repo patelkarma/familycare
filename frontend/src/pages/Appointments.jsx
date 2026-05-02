@@ -82,11 +82,6 @@ const Appointments = () => {
 
   if (!isPatient && membersLoading) return <LoadingSpinner size="lg" />;
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
   const formatTime = (dateStr) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });

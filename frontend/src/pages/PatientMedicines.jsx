@@ -36,13 +36,6 @@ const timingLabels = {
   night: 'Night',
 };
 
-const statusConfig = {
-  PENDING: { color: 'bg-amber-100 text-amber-700', label: 'Pending' },
-  TAKEN: { color: 'bg-green-100 text-green-700', label: 'Taken' },
-  SKIPPED: { color: 'bg-gray-100 text-gray-500', label: 'Skipped' },
-  MISSED: { color: 'bg-red-100 text-red-700', label: 'Missed' },
-};
-
 const PatientMedicines = () => {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -326,7 +319,6 @@ const PatientMedicines = () => {
                 {groupSlots.map((slot) => {
                   const slotKey = `${slot.medicineId}-${slot.timingKey}`;
                   const isActioning = actioningSlot === slotKey;
-                  const config = statusConfig[slot.status] || statusConfig.PENDING;
 
                   return (
                     <motion.div

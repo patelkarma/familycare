@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, Phone, X, MessageSquare, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useTranslation } from 'react-i18next';
 
 const isMobile =
   typeof navigator !== 'undefined' &&
@@ -29,7 +28,6 @@ const handleDesktopCall = (e, phone) => {
  * fallback for life-threatening situations.
  */
 const SOSResultModal = ({ isOpen, result, onClose }) => {
-  const { t } = useTranslation();
   if (!isOpen) return null;
 
   const deliveries = result?.deliveryByContact || [];

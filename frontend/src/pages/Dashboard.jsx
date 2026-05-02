@@ -5,7 +5,7 @@ import { Users, Plus, Heart, Pill, Clock, Check, AlertTriangle, Sun, Cloud, Moon
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { dashboardApi } from '../api/dashboard.api';
-import { getGreeting, formatRelationship, formatDate } from '../utils/formatters';
+import { formatRelationship, formatDate } from '../utils/formatters';
 import Avatar from '../components/shared/Avatar';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import EmptyState from '../components/shared/EmptyState';
