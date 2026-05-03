@@ -771,7 +771,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
             "http://localhost:5173",              // Local dev
-            "https://familycare.vercel.app"       // Production
+            "https://familycare-gamma.vercel.app" // Production
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
@@ -1013,7 +1013,7 @@ server.port=8080
 
 ### Frontend (`.env`)
 ```env
-VITE_API_BASE_URL=https://familycare-api.onrender.com/api
+VITE_API_BASE_URL=https://familycare.onrender.com/api
 VITE_CLOUDINARY_CLOUD_NAME=your_cloud_name
 VITE_CLOUDINARY_UPLOAD_PRESET=familycare_unsigned
 ```

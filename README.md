@@ -2,7 +2,7 @@
 
 A multi-user health management web app for Indian families. One tech-savvy member sets up medicines, vitals, and reminders; elderly relatives receive WhatsApp reminders without installing anything.
 
-**Live:** [familycare.vercel.app](https://familycare.vercel.app) · **API:** [familycare-api.onrender.com](https://familycare-api.onrender.com)
+**Live:** [familycare-gamma.vercel.app](https://familycare-gamma.vercel.app) · **API docs (Swagger UI):** [familycare.onrender.com/swagger-ui.html](https://familycare.onrender.com/swagger-ui.html)
 
 > Render's free tier sleeps after 15 minutes of inactivity. The first request after a cold start takes ~30 seconds.
 

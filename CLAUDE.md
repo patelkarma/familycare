@@ -281,7 +281,7 @@ family_members → emergency_contacts (one-to-many)
 ## 7. All API Endpoints
 
 Base URL (dev): `http://localhost:8080/api`
-Base URL (prod): `https://familycare-api.onrender.com/api`
+Base URL (prod): `https://familycare.onrender.com/api`
 
 All endpoints require `Authorization: Bearer <jwt>` header except `/auth/**`.
 
