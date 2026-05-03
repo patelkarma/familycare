@@ -44,12 +44,14 @@ Short notes on choices that aren't obvious from the code, written when the decis
 
 **Decision.** Stay on free tier. Mitigate, don't pay.
 
-**Mitigations.**
+**Mitigations (in place).**
 - `/api/health` is unauthenticated and trivially cheap, so it can be pinged externally without exposing anything.
-- A free uptime service (UptimeRobot / cron-job.org) hits `/api/health` every 10 minutes during expected demo windows.
-- The frontend shows a "Waking up the server..." state if the first request takes >3s, so the cold start is visible instead of looking broken.
+- An **UptimeRobot monitor pings `/api/health` every 5 minutes**, well under Render's 15-minute sleep threshold. Free tier, no code in repo, ~2-min one-time setup.
+- The README explicitly warns about the cold-start window so a recruiter clicking the live link at the rare moment UptimeRobot misses doesn't read the latency as a broken site.
 
 **Why not pay.** This is a portfolio project. The day a real user complains about latency, $7/mo on Render's starter tier removes the issue entirely. Until then, the constraint is a demo problem, not a product problem.
+
+**Future work.** A "Waking up the server…" UI state in the frontend that surfaces during the >3s cold-start window — currently the request just hangs silently if UptimeRobot has missed a ping. Small frontend task; not a blocker.
 
 ---
 

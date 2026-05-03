@@ -21,7 +21,7 @@ Her elderly mother gets WhatsApp reminders on her existing phone. **No app. No l
 
 **[🚀 Live demo](https://familycare-gamma.vercel.app)** · **[📘 API docs](https://familycare.onrender.com/swagger-ui.html)** · **[🏛️ Architecture](docs/ARCHITECTURE.md)** · **[🧠 Decisions](docs/DECISIONS.md)**
 
-> ⏱️ Render's free tier sleeps after 15 min idle. First request after wake takes ~30s.
+> ⏱️ Render's free tier sleeps after 15 min idle. An [UptimeRobot](https://uptimerobot.com/) monitor pings `/api/health` every 5 min to keep it warm — full reasoning in [ADR-003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts).
 
 </div>
 
