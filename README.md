@@ -1,167 +1,179 @@
-# FamilyCare
+<div align="center">
 
-A multi-user health management web app for Indian families. One tech-savvy member sets up medicines, vitals, and reminders; elderly relatives receive WhatsApp reminders without installing anything.
+# 🩺 FamilyCare
 
-**Live:** [familycare-gamma.vercel.app](https://familycare-gamma.vercel.app) · **API docs (Swagger UI):** [familycare.onrender.com/swagger-ui.html](https://familycare.onrender.com/swagger-ui.html)
+### A family health app for India — where the elderly parent never installs a thing.
 
-> Render's free tier sleeps after 15 minutes of inactivity. The first request after a cold start takes ~30 seconds.
+The tech-savvy daughter sets up medicines, vitals, and emergency contacts on a web dashboard.
+Her elderly mother gets WhatsApp reminders on her existing phone. **No app. No login. No friction.**
 
-## Demo
+<br/>
+
+[![CI](https://github.com/patelkarma/familycare/actions/workflows/ci.yml/badge.svg)](https://github.com/patelkarma/familycare/actions)
+![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-3-38B2AC?logo=tailwindcss&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-40%20passing-success)
+![License](https://img.shields.io/badge/license-portfolio-blue)
+
+<br/>
+
+**[🚀 Live demo](https://familycare-gamma.vercel.app)** · **[📘 API docs](https://familycare.onrender.com/swagger-ui.html)** · **[🏛️ Architecture](docs/ARCHITECTURE.md)** · **[🧠 Decisions](docs/DECISIONS.md)**
+
+> ⏱️ Render's free tier sleeps after 15 min idle. First request after wake takes ~30s.
+
+</div>
+
+---
+
+## 📹 Demo
 
 <!--
   Record a 30-45s screen capture and drop the .gif or .mp4 in this section.
   See docs/DEMO_RECORDING.md for the exact 6-shot script.
 -->
 
-> 📹 _Demo recording coming — see [docs/DEMO_RECORDING.md](docs/DEMO_RECORDING.md) for the script._
+> _Demo recording in progress — see [`docs/DEMO_RECORDING.md`](docs/DEMO_RECORDING.md) for the 6-shot script._
 
 ---
 
-## Features
+## 🧭 The problem
 
-1. **Medicine reminders via WhatsApp** — scheduled per family member, no app install needed
-2. **Prescription OCR** — Tesseract + heuristic parser auto-fills medicine forms from photos
-3. **Family dashboard** — every member's adherence and vitals in one view
-4. **Vitals trend alerts** — 3 consecutive high BP / sugar readings escalate to family head
-5. **Stock tracker + pharmacy finder** — low-stock SMS + Google Maps pharmacy links
-6. **Medical report locker** — Cloudinary-backed PDF/image storage with timeline
-7. **One-tap SOS** — WhatsApp blast to all emergency contacts with GPS, blood group, and active medicine list
+In India, ~138 million people are aged 60+. The people *managing* their daily health are usually their adult children — who live in a different city, work different hours, and check WhatsApp 50× a day.
+
+**Every existing health app assumes the patient installs it.** The patient is 72. The patient does not install apps.
+
+FamilyCare flips it: the dashboard is for the **caregiver**. The reminders go to **WhatsApp** on the parent's basic phone. Zero install on the device that matters most.
 
 ---
 
-## Tech stack
+## ✨ Features
 
-**Backend** — Java 17 · Spring Boot 3.5 · Spring Security + JWT · Spring Data JPA · PostgreSQL (Supabase) · Redis (Upstash) · Twilio WhatsApp · Cloudinary · Tesseract4J · Gemini API
-
-**Frontend** — React 19 · Vite · TanStack Query · React Hook Form + Zod · Tailwind CSS · Recharts · Axios · React Router v7 · Tesseract.js · Framer Motion · Leaflet
-
-**Infra** — Render (backend) · Vercel (frontend) · GitHub Actions CI · Docker
+| | |
+|---|---|
+| 💊 **Medicine reminders** | Scheduled per family member; delivered via Twilio WhatsApp; escalates to family head if no response in 30 min |
+| 📷 **Prescription OCR** | Tesseract + a curated Indian medicine dictionary auto-fills the form from a photo of the prescription |
+| 👨‍👩‍👧 **Family dashboard** | Adherence and vitals across every family member in one view, optimistic-UI dose marking |
+| 📈 **Vitals trend alerts** | 3 consecutive high-BP / sugar readings auto-escalate to the family head with the actual numbers |
+| 📦 **Stock tracker** | Decrements on each dose; low-stock alert with Google Maps pharmacy link |
+| 📂 **Medical report locker** | Cloudinary-backed PDF/image storage; pin reports for SOS access |
+| 🚨 **One-tap SOS** | WhatsApp blast to all emergency contacts with GPS, blood group, allergies, and active medicines |
 
 ---
 
-## Getting started
+## 🧠 Notable engineering decisions
 
-### Prerequisites
+The 5 calls I'd want a senior engineer to ask me about — full reasoning in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-- JDK 17+
-- Node 20+
-- A free Supabase Postgres instance
-- A free Upstash Redis instance
-- (Optional for full feature set) Twilio sandbox, Cloudinary, Gemini API key
+- **Regex prescription parser, not an LLM.** Sub-millisecond, deterministic, free forever; the regex *fails visibly* while an LLM would fail confidently. Coverage tradeoff documented. ([ADR-004](docs/DECISIONS.md#adr-004-regex-based-prescription-parser-not-an-llm))
+- **JWT in `localStorage`, not `httpOnly` cookies.** Cross-origin CORS stays simple, mobile path is identical, XSS risk explicitly mitigated. ([ADR-002](docs/DECISIONS.md#adr-002-jwt-in-localstorage-not-httponly-cookies))
+- **Render free tier despite cold starts.** Mitigations (external uptime ping + "waking up" UI state) beat paying. ([ADR-003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts))
+- **Monolith, not microservices.** One engineer × 30 days has a *delivery* problem, not a scaling problem. ([ADR-001](docs/DECISIONS.md#adr-001-one-spring-boot-monolith))
+- **WhatsApp-only, not WhatsApp + SMS.** Ship one channel that works over two half-wired ones; Fast2SMS deferred until a real user needs it. ([ADR-005](docs/DECISIONS.md#adr-005-whatsapp-only-reminders-no-sms-fallback-yet))
 
-### 1. Clone
+---
 
-```bash
-git clone https://github.com/<your-username>/familycare.git
-cd familycare
+## 📊 By the numbers
+
+- **40 tests** on every push — 14 unit + 2 Testcontainers integration (real Postgres + Redis in Docker) on the backend, 24 Vitest tests on the frontend
+- **15 REST controllers** with `@Valid` DTOs, a single `GlobalExceptionHandler`, and JWT-protected by default
+- **9 languages** via `react-i18next` — English, हिन्दी, ગુજરાતી, मराठी, বাংলা, தமிழ், తెలుగు, ಕನ್ನಡ, ਪੰਜਾਬੀ — 402 translation keys each, drift-checked in CI
+- **5 ADRs** documenting decisions worth defending in a code review
+- **1 real production bug** caught by an integration test before it shipped (`/me` returning 500 instead of 401 on missing token — see commit [`bd91a64`](https://github.com/patelkarma/familycare/commit/bd91a64))
+
+---
+
+## 🛠 Tech stack
+
+| Layer | Stack |
+|---|---|
+| **Backend** | Java 17 · Spring Boot 3.5 · Spring Security + JWT · Spring Data JPA · Tesseract4J · Twilio · Cloudinary · Gemini |
+| **Frontend** | React 19 · Vite · TanStack Query · React Hook Form + Zod · Tailwind · Recharts · Tesseract.js · Framer Motion · Leaflet |
+| **Data** | PostgreSQL (Supabase) · Redis (Upstash) |
+| **Infra** | Render · Vercel · GitHub Actions · Docker · Maven Surefire profiles for unit/integration split |
+
+---
+
+## 🏛 Architecture
+
+A one-page system diagram and the full medicine-reminder lifecycle (Redis-backed delay queue → `@Scheduled` cron → Twilio → optimistic UI → escalation) live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+```mermaid
+flowchart LR
+    user["👤 Family head<br/>(browser)"]
+    elder["👵 Elderly relative<br/>(WhatsApp)"]
+    spa[React SPA<br/>Vercel]
+    api[Spring Boot<br/>Render]
+    pg[(Postgres<br/>Supabase)]
+    redis[(Redis<br/>Upstash)]
+    twilio[Twilio<br/>WhatsApp]
+
+    user --> spa --> api
+    api --> pg
+    api --> redis
+    api --> twilio --> elder
+    elder -.reply.-> api
 ```
 
-### 2. Backend
+---
 
+## 🏃 Run it locally
+
+<details>
+<summary><b>Click to expand setup instructions</b></summary>
+
+### Prerequisites
+- JDK 17+, Node 20+
+- Free accounts on Supabase, Upstash, Cloudinary, Twilio Sandbox, Gemini
+
+### Backend
 ```bash
 cd backend
 cp .env.example .env   # fill in your values
 ./mvnw spring-boot:run
 ```
+Boots on `http://localhost:8080`. Swagger at `/swagger-ui.html`.
 
-Backend boots on `http://localhost:8080`. Swagger UI at `http://localhost:8080/swagger-ui.html`.
-
-Required env vars (see `backend/.env.example`):
-
-```
-SPRING_DATASOURCE_URL=jdbc:postgresql://<host>:5432/postgres
-SPRING_DATASOURCE_USERNAME=postgres
-SPRING_DATASOURCE_PASSWORD=...
-SPRING_DATA_REDIS_URL=rediss://default:<token>@<host>:6379
-JWT_SECRET=<256-bit secret>
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
-TWILIO_ACCOUNT_SID=...
-TWILIO_AUTH_TOKEN=...
-GEMINI_API_KEY=...
-```
-
-### 3. Frontend
-
+### Frontend
 ```bash
 cd frontend
-cp .env.example .env   # set VITE_API_BASE_URL=http://localhost:8080/api
+cp .env.example .env   # VITE_API_BASE_URL=http://localhost:8080/api
 npm install
 npm run dev
 ```
+Boots on `http://localhost:5173`.
 
-Frontend boots on `http://localhost:5173`.
-
----
-
-## Project layout
-
-```
-familycare/
-├── backend/          Spring Boot application (Maven)
-│   ├── src/main/java/com/familycare/
-│   │   ├── controller/   REST endpoints (15)
-│   │   ├── service/      Business logic
-│   │   ├── repository/   Spring Data JPA
-│   │   ├── model/        JPA entities
-│   │   ├── dto/          Request/response DTOs
-│   │   ├── security/     JWT filter + utils
-│   │   ├── scheduler/    @Scheduled reminder loop
-│   │   └── config/       Security, CORS, Redis, Cloudinary
-│   └── src/test/java/    JUnit + MockMvc tests
-└── frontend/         React + Vite SPA
-    └── src/
-        ├── pages/        Route components
-        ├── components/   Feature components
-        ├── api/          Axios + React Query hooks
-        ├── context/      Auth context
-        └── hooks/
-```
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system diagram + reminder flow
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — short ADRs explaining *why* (JWT in localStorage, regex OCR, Render free tier, etc.)
-- [`SPEC.md`](SPEC.md) — original product spec
-- [`CLAUDE.md`](CLAUDE.md) — conventions for the AI assistant
-
----
-
-## Testing
-
-**Backend:**
+### Tests
 ```bash
-cd backend
-./mvnw test
+# Backend (14 unit tests, no Docker required)
+cd backend && ./mvnw test
+
+# Backend integration tests (real Postgres + Redis via Testcontainers; needs Docker)
+cd backend && ./mvnw test -Pintegration
+
+# Frontend (24 Vitest tests)
+cd frontend && npm test
 ```
 
-**Frontend:**
-```bash
-cd frontend
-npm test
-```
+</details>
 
 ---
 
-## Deployment
+## 🗺 Roadmap / what I'd ship next
 
-The repo deploys automatically:
-
-- Push to `main` → GitHub Actions runs lint + build + tests
-- Render redeploys the backend Docker image
-- Vercel redeploys the frontend
-
-Production env vars are set in each platform's dashboard (never in the repo).
+- Move the prescription parser to **Gemini Vision** once usage justifies the cost — regex covers ~70% of clean inputs but misses handwritten scripts
+- Wire **Sentry** on both ends (errors currently disappear into Render logs)
+- **Lighthouse CI** gate so the frontend bundle (~1.6 MB) doesn't keep growing
+- **Fast2SMS** fallback for users on feature phones without WhatsApp (deferred — see [ADR-005](docs/DECISIONS.md#adr-005-whatsapp-only-reminders-no-sms-fallback-yet))
+- **PWA + offline cache** for the dose schedule so reminders work even with patchy 3G
 
 ---
 
-## API
+## 📄 License
 
-All endpoints are under `/api/*` and require a `Authorization: Bearer <jwt>` header except `/api/auth/**` and `/api/health`.
+Educational / portfolio project, built solo. Not licensed for redistribution.
 
-See Swagger UI at `/swagger-ui.html` for the full contract, or [`CLAUDE.md`](CLAUDE.md#7-all-api-endpoints) for the endpoint summary.
-
----
-
-## License
-
-Educational/portfolio project. Not licensed for redistribution.
+<div align="center">
+<sub>Built with care for Indian families. ❤️</sub>
+</div>
