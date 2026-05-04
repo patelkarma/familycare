@@ -71,7 +71,15 @@
     "dosesToday": "આજની ડોઝ",
     "vitalsLogged": "નોંધાયેલા સંકેતો",
     "addFirstMedicine": "પ્રથમ દવા ઉમેરો",
-    "noMedicinesYet": "હજી કોઈ દવા નથી"
+    "noMedicinesYet": "હજી કોઈ દવા નથી",
+    "dosesCompleted": "{{taken}}/{{total}} ડોઝ પૂર્ણ",
+    "alerts": {
+      "missedDose_one": "આજે {{count}} ડોઝ ચૂકી ગયો",
+      "missedDose_other": "આજે {{count}} ડોઝ ચૂકી ગયા",
+      "lowStock_one": "{{memberName}} માટે {{medicineName}} — માત્ર {{count}} ડોઝ બાકી",
+      "lowStock_other": "{{memberName}} માટે {{medicineName}} — માત્ર {{count}} ડોઝ બાકી",
+      "appointmentSoon": "{{when}} ના રોજ {{memberName}} માટે {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "મારી પ્રોફાઇલ",

@@ -71,7 +71,15 @@
     "dosesToday": "Doses Today",
     "vitalsLogged": "Vitals Logged",
     "addFirstMedicine": "Add First Medicine",
-    "noMedicinesYet": "No medicines yet"
+    "noMedicinesYet": "No medicines yet",
+    "dosesCompleted": "{{taken}}/{{total}} doses completed",
+    "alerts": {
+      "missedDose_one": "{{count}} dose missed today",
+      "missedDose_other": "{{count}} doses missed today",
+      "lowStock_one": "{{medicineName}} for {{memberName}} — {{count}} dose left",
+      "lowStock_other": "{{medicineName}} for {{memberName}} — {{count}} doses left",
+      "appointmentSoon": "{{doctorLabel}} for {{memberName}} on {{when}}"
+    }
   },
   "profile": {
     "title": "My Profile",

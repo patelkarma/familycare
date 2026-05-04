@@ -118,6 +118,28 @@ const Dashboard = () => {
               alert.type === 'LOW_STOCK' ? PackageX :
               alert.type === 'MISSED_DOSE' ? AlertTriangle :
               alert.type === 'UPCOMING_APPOINTMENT' ? Calendar : AlertTriangle;
+
+            // Backend sends a structured (messageKey, params) plus a pre-built
+            // English `message` for fallback. When messageKey is known we render
+            // via i18next so the alert reads in the user's selected language.
+            // For appointmentSoon the date is locale-formatted client-side.
+            let rendered = alert.message;
+            if (alert.messageKey) {
+              const params = { ...(alert.params || {}) };
+              if (alert.messageKey === 'appointmentSoon' && params.appointmentAt) {
+                try {
+                  params.when = new Date(params.appointmentAt).toLocaleString(localeTag, {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                  });
+                } catch {
+                  // keep server-formatted `when`
+                }
+              }
+              const i18nKey = `dashboard.alerts.${alert.messageKey}`;
+              const translated = t(i18nKey, params);
+              if (translated && translated !== i18nKey) rendered = translated;
+            }
+
             return (
               <motion.div
                 key={`${alert.type}-${idx}`}
@@ -125,7 +147,7 @@ const Dashboard = () => {
                 className={`flex items-center gap-3 border rounded-xl px-4 py-3 text-sm font-medium ${palette}`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span className="flex-1">{alert.message}</span>
+                <span className="flex-1">{rendered}</span>
               </motion.div>
             );
           })}
@@ -251,7 +273,7 @@ const Dashboard = () => {
                           {schedule.memberName}
                         </h3>
                         <p className="text-xs text-gray-400">
-                          {memberTaken}/{memberTotal} doses completed
+                          {t('dashboard.dosesCompleted', { taken: memberTaken, total: memberTotal })}
                         </p>
                       </div>
                     </div>

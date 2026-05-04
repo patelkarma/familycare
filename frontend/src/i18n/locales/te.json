@@ -71,7 +71,15 @@
     "dosesToday": "ఈరోజు డోసులు",
     "vitalsLogged": "నమోదైన సూచికలు",
     "addFirstMedicine": "మొదటి మందు జోడించండి",
-    "noMedicinesYet": "ఇంకా మందులు లేవు"
+    "noMedicinesYet": "ఇంకా మందులు లేవు",
+    "dosesCompleted": "{{taken}}/{{total}} మోతాదులు పూర్తి",
+    "alerts": {
+      "missedDose_one": "ఈరోజు {{count}} మోతాదు తప్పిపోయింది",
+      "missedDose_other": "ఈరోజు {{count}} మోతాదులు తప్పిపోయాయి",
+      "lowStock_one": "{{memberName}} కోసం {{medicineName}} — {{count}} మోతాదు మాత్రమే మిగిలి",
+      "lowStock_other": "{{memberName}} కోసం {{medicineName}} — {{count}} మోతాదులు మాత్రమే మిగిలి",
+      "appointmentSoon": "{{when}} న {{memberName}} కోసం {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "నా ప్రొఫైల్",

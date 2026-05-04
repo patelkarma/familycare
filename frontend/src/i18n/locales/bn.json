@@ -71,7 +71,15 @@
     "dosesToday": "আজকের ডোজ",
     "vitalsLogged": "নথিভুক্ত সূচক",
     "addFirstMedicine": "প্রথম ওষুধ যোগ করুন",
-    "noMedicinesYet": "এখনও কোনো ওষুধ নেই"
+    "noMedicinesYet": "এখনও কোনো ওষুধ নেই",
+    "dosesCompleted": "{{taken}}/{{total}} ডোজ সম্পন্ন",
+    "alerts": {
+      "missedDose_one": "আজ {{count}}টি ডোজ বাদ পড়েছে",
+      "missedDose_other": "আজ {{count}}টি ডোজ বাদ পড়েছে",
+      "lowStock_one": "{{memberName}} এর জন্য {{medicineName}} — মাত্র {{count}}টি ডোজ বাকি",
+      "lowStock_other": "{{memberName}} এর জন্য {{medicineName}} — মাত্র {{count}}টি ডোজ বাকি",
+      "appointmentSoon": "{{when}} এ {{memberName}} এর জন্য {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "আমার প্রোফাইল",

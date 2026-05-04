@@ -71,7 +71,15 @@
     "dosesToday": "ಇಂದಿನ ಡೋಸ್‌ಗಳು",
     "vitalsLogged": "ದಾಖಲಿಸಿದ ಸೂಚಕಗಳು",
     "addFirstMedicine": "ಮೊದಲ ಔಷಧ ಸೇರಿಸಿ",
-    "noMedicinesYet": "ಇನ್ನೂ ಔಷಧಗಳಿಲ್ಲ"
+    "noMedicinesYet": "ಇನ್ನೂ ಔಷಧಗಳಿಲ್ಲ",
+    "dosesCompleted": "{{taken}}/{{total}} ಡೋಸ್ ಪೂರ್ಣ",
+    "alerts": {
+      "missedDose_one": "ಇಂದು {{count}} ಡೋಸ್ ತಪ್ಪಿಸಿಕೊಂಡಿದೆ",
+      "missedDose_other": "ಇಂದು {{count}} ಡೋಸ್‌ಗಳು ತಪ್ಪಿಸಿಕೊಂಡಿವೆ",
+      "lowStock_one": "{{memberName}} ಗಾಗಿ {{medicineName}} — ಕೇವಲ {{count}} ಡೋಸ್ ಬಾಕಿ",
+      "lowStock_other": "{{memberName}} ಗಾಗಿ {{medicineName}} — ಕೇವಲ {{count}} ಡೋಸ್‌ಗಳು ಬಾಕಿ",
+      "appointmentSoon": "{{when}} ರಂದು {{memberName}} ಗಾಗಿ {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "ನನ್ನ ಪ್ರೊಫೈಲ್",

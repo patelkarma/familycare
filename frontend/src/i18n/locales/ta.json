@@ -71,7 +71,15 @@
     "dosesToday": "இன்றைய டோஸ்",
     "vitalsLogged": "பதிவான அறிகுறிகள்",
     "addFirstMedicine": "முதல் மருந்தைச் சேர்",
-    "noMedicinesYet": "இன்னும் மருந்துகள் இல்லை"
+    "noMedicinesYet": "இன்னும் மருந்துகள் இல்லை",
+    "dosesCompleted": "{{taken}}/{{total}} மருந்துகள் முடிந்தது",
+    "alerts": {
+      "missedDose_one": "இன்று {{count}} மருந்து தவறவிட்டது",
+      "missedDose_other": "இன்று {{count}} மருந்துகள் தவறவிட்டன",
+      "lowStock_one": "{{memberName}} க்கான {{medicineName}} — {{count}} மருந்து மட்டும் மீதம்",
+      "lowStock_other": "{{memberName}} க்கான {{medicineName}} — {{count}} மருந்துகள் மீதம்",
+      "appointmentSoon": "{{when}} அன்று {{memberName}} க்கான {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "என் சுயவிவரம்",

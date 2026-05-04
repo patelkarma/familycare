@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -61,7 +62,15 @@ public class DashboardSummaryResponse {
     public static class DashboardAlert {
         private String type;     // LOW_STOCK | MISSED_DOSE | UPCOMING_APPOINTMENT | VITAL_TREND
         private String severity; // INFO | WARNING | CRITICAL
+        // Pre-formatted English message — kept as a fallback for clients that don't
+        // know the messageKey vocabulary (or for older clients during a rollout).
         private String message;
+        // i18n key under "dashboard.alerts.*" — frontend renders it with params via
+        // i18next interpolation so the alert reads in the user's selected language.
+        private String messageKey;
+        // Interpolation params for the messageKey (count, memberName, medicineName,
+        // doctorLabel, when, etc.). Frontend feeds these directly to t(key, params).
+        private Map<String, Object> params;
         private UUID relatedMemberId;
     }
 }

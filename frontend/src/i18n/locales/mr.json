@@ -71,7 +71,15 @@
     "dosesToday": "आजचे डोस",
     "vitalsLogged": "नोंदवलेले निर्देशक",
     "addFirstMedicine": "पहिले औषध जोडा",
-    "noMedicinesYet": "अद्याप औषधे नाहीत"
+    "noMedicinesYet": "अद्याप औषधे नाहीत",
+    "dosesCompleted": "{{taken}}/{{total}} डोस पूर्ण",
+    "alerts": {
+      "missedDose_one": "आज {{count}} डोस चुकला",
+      "missedDose_other": "आज {{count}} डोस चुकले",
+      "lowStock_one": "{{memberName}} साठी {{medicineName}} — फक्त {{count}} डोस उरला",
+      "lowStock_other": "{{memberName}} साठी {{medicineName}} — फक्त {{count}} डोस उरले",
+      "appointmentSoon": "{{when}} रोजी {{memberName}} साठी {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "माझे प्रोफाइल",

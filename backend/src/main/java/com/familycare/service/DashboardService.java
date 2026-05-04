@@ -24,8 +24,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -231,21 +233,33 @@ public class DashboardService {
         List<DashboardSummaryResponse.DashboardAlert> alerts = new ArrayList<>();
 
         if (stats.getMissed() > 0) {
+            int count = stats.getMissed();
+            Map<String, Object> params = new HashMap<>();
+            params.put("count", count);
             alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
                     .type("MISSED_DOSE")
-                    .severity(stats.getMissed() >= 3 ? "CRITICAL" : "WARNING")
-                    .message(stats.getMissed() + " dose" + (stats.getMissed() > 1 ? "s" : "") + " missed today")
+                    .severity(count >= 3 ? "CRITICAL" : "WARNING")
+                    .message(count + " dose" + (count > 1 ? "s" : "") + " missed today")
+                    .messageKey("missedDose")
+                    .params(params)
                     .build());
         }
 
         for (DashboardSummaryResponse.LowStockMedicine m : lowStock) {
             Integer stock = m.getStockCount();
             String severity = stock != null && stock == 0 ? "CRITICAL" : "WARNING";
+            int count = stock == null ? 0 : stock;
+            Map<String, Object> params = new HashMap<>();
+            params.put("count", count);
+            params.put("medicineName", m.getMedicineName());
+            params.put("memberName", m.getMemberName());
             alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
                     .type("LOW_STOCK")
                     .severity(severity)
                     .message(m.getMedicineName() + " for " + m.getMemberName() + " — "
-                            + stock + " dose" + (stock != null && stock == 1 ? "" : "s") + " left")
+                            + count + " dose" + (count == 1 ? "" : "s") + " left")
+                    .messageKey("lowStock")
+                    .params(params)
                     .relatedMemberId(m.getMemberId())
                     .build());
         }
@@ -264,11 +278,20 @@ public class DashboardService {
             } else {
                 doctorLabel = "Dr. " + rawName;
             }
+            // Pass ISO timestamp so the frontend can render the date in the user's
+            // locale; keep a pre-formatted English `when` for the message fallback.
+            Map<String, Object> params = new HashMap<>();
+            params.put("doctorLabel", doctorLabel);
+            params.put("memberName", a.getFamilyMemberName());
+            params.put("when", a.getAppointmentDate().format(fmt));
+            params.put("appointmentAt", a.getAppointmentDate().toString());
             alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
                     .type("UPCOMING_APPOINTMENT")
                     .severity("INFO")
                     .message(doctorLabel + " for " + a.getFamilyMemberName() + " on "
                             + a.getAppointmentDate().format(fmt))
+                    .messageKey("appointmentSoon")
+                    .params(params)
                     .relatedMemberId(a.getFamilyMemberId())
                     .build());
         }

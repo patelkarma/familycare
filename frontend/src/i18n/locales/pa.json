@@ -71,7 +71,15 @@
     "dosesToday": "ਅੱਜ ਦੀਆਂ ਖੁਰਾਕਾਂ",
     "vitalsLogged": "ਦਰਜ ਕੀਤੇ ਸੂਚਕ",
     "addFirstMedicine": "ਪਹਿਲੀ ਦਵਾਈ ਜੋੜੋ",
-    "noMedicinesYet": "ਅਜੇ ਕੋਈ ਦਵਾਈ ਨਹੀਂ"
+    "noMedicinesYet": "ਅਜੇ ਕੋਈ ਦਵਾਈ ਨਹੀਂ",
+    "dosesCompleted": "{{taken}}/{{total}} ਖੁਰਾਕਾਂ ਮੁਕੰਮਲ",
+    "alerts": {
+      "missedDose_one": "ਅੱਜ {{count}} ਖੁਰਾਕ ਖੁੰਝੀ",
+      "missedDose_other": "ਅੱਜ {{count}} ਖੁਰਾਕਾਂ ਖੁੰਝੀਆਂ",
+      "lowStock_one": "{{memberName}} ਲਈ {{medicineName}} — ਸਿਰਫ਼ {{count}} ਖੁਰਾਕ ਬਚੀ",
+      "lowStock_other": "{{memberName}} ਲਈ {{medicineName}} — ਸਿਰਫ਼ {{count}} ਖੁਰਾਕਾਂ ਬਚੀਆਂ",
+      "appointmentSoon": "{{when}} ਨੂੰ {{memberName}} ਲਈ {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "ਮੇਰੀ ਪ੍ਰੋਫਾਈਲ",

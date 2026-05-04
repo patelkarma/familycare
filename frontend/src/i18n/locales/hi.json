@@ -71,7 +71,15 @@
     "dosesToday": "आज की खुराक",
     "vitalsLogged": "दर्ज स्वास्थ्य संकेत",
     "addFirstMedicine": "पहली दवा जोड़ें",
-    "noMedicinesYet": "अभी कोई दवा नहीं"
+    "noMedicinesYet": "अभी कोई दवा नहीं",
+    "dosesCompleted": "{{taken}}/{{total}} खुराक पूरी",
+    "alerts": {
+      "missedDose_one": "आज {{count}} खुराक छूट गई",
+      "missedDose_other": "आज {{count}} खुराक छूट गईं",
+      "lowStock_one": "{{memberName}} के लिए {{medicineName}} — केवल {{count}} खुराक बची",
+      "lowStock_other": "{{memberName}} के लिए {{medicineName}} — केवल {{count}} खुराक बचीं",
+      "appointmentSoon": "{{when}} को {{memberName}} के लिए {{doctorLabel}}"
+    }
   },
   "profile": {
     "title": "मेरी प्रोफ़ाइल",
