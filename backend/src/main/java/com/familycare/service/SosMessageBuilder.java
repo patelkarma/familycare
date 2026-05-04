@@ -102,8 +102,12 @@ public class SosMessageBuilder {
     // names. WhatsApp bold formatting (*text*) silently breaks if there's any
     // whitespace adjacent to the asterisks, so a single hidden U+00A0 in the
     // name renders the asterisks as literal characters in the alert.
+    //
+    // Java's String.trim() and String.strip() both ignore the no-break space
+    // family (U+00A0, U+2007, U+202F), so the regex below explicitly catches
+    // them via the Unicode \p{Z} class on top of the standard \s whitespace.
     private String safe(String s) {
-        return s == null ? "" : s.trim();
+        return s == null ? "" : s.replaceAll("(^[\\s\\p{Z}]+)|([\\s\\p{Z}]+$)", "");
     }
 
     private Integer ageOf(LocalDate dob) {
