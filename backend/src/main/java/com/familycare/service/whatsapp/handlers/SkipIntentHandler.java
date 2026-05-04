@@ -56,14 +56,15 @@ public class SkipIntentHandler implements IntentHandler {
         // PENDING preferred, MISSED accepted as a fallback — same reasoning as
         // TakenIntentHandler.pickPendingLog: a late "skip" reply is still a
         // valid intent and should land on the dose the watchdog flipped to MISSED.
-        List<MedicineLog> pending = medicineLogRepository
+        // Assigned once via ternary so it stays effectively final and can be
+        // captured by the orElseGet lambda below.
+        List<MedicineLog> pendingFirst = medicineLogRepository
                 .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
                         member.getId(), "PENDING", startOfDay, endOfDay);
-        if (pending.isEmpty()) {
-            pending = medicineLogRepository
-                    .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
-                            member.getId(), "MISSED", startOfDay, endOfDay);
-        }
+        List<MedicineLog> pending = pendingFirst.isEmpty()
+                ? medicineLogRepository.findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
+                        member.getId(), "MISSED", startOfDay, endOfDay)
+                : pendingFirst;
         if (pending.isEmpty()) {
             return "No pending dose to skip for " + member.getName() + ".";
         }

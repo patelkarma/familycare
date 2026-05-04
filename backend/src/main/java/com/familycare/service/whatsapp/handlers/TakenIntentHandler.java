@@ -92,14 +92,17 @@ public class TakenIntentHandler implements IntentHandler {
         // the dose to MISSED. Without this fallback, "ok" / "lia" / "✅" would hit
         // "no pending dose" even though they obviously meant the morning reminder
         // they're now responding to.
-        List<MedicineLog> pending = medicineLogRepository
+        //
+        // Assigned once via ternary so the variable stays effectively final and
+        // can be captured by the orElseGet lambda below — Java's "effectively
+        // final" rule rejects a reassignment-then-capture pattern at compile time.
+        List<MedicineLog> pendingFirst = medicineLogRepository
                 .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
                         member.getId(), "PENDING", startOfDay, endOfDay);
-        if (pending.isEmpty()) {
-            pending = medicineLogRepository
-                    .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
-                            member.getId(), "MISSED", startOfDay, endOfDay);
-        }
+        List<MedicineLog> pending = pendingFirst.isEmpty()
+                ? medicineLogRepository.findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
+                        member.getId(), "MISSED", startOfDay, endOfDay)
+                : pendingFirst;
 
         if (pending.isEmpty()) return null;
 
