@@ -19,6 +19,23 @@ const STAGES = {
   DONE: 'done',
 };
 
+// When a prescription line has no explicit mg/ml dosage (e.g. "Cap. Becosules OD"
+// or "Syp. Grilinctus BD"), we still need to save *something* in the dosage field
+// so the dose card has a label. Picking the unit that matches the form keeps the
+// medicines list honest — Syrup rows shouldn't read "1 tablet".
+const defaultDosageForForm = (form) => {
+  switch (form) {
+    case 'Syrup': return '5 ml';
+    case 'Capsule': return '1 capsule';
+    case 'Drops': return '2 drops';
+    case 'Cream': return 'Apply';
+    case 'Inhaler': return '1 puff';
+    case 'Injection': return '1 dose';
+    case 'Tablet':
+    default: return '1 tablet';
+  }
+};
+
 const PrescriptionScanner = ({ memberId, memberName, onClose }) => {
   const { t } = useTranslation();
   const [stage, setStage] = useState(STAGES.IDLE);
@@ -119,7 +136,7 @@ const PrescriptionScanner = ({ memberId, memberName, onClose }) => {
       const payload = chosen.map((m) => ({
         name: m.name,
         genericName: m.genericName || null,
-        dosage: m.dosage || '1 tablet',
+        dosage: m.dosage || defaultDosageForForm(m.form),
         form: m.form || 'Tablet',
         frequency: m.frequency || 'Once daily',
         timing: m.timing && Object.keys(m.timing).length ? m.timing : { morning: '09:00' },
