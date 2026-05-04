@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { familyMemberSchema } from '../../utils/validators';
 import { familyApi } from '../../api/family.api';
+import { authApi } from '../../api/auth.api';
+import { useAuth } from '../../hooks/useAuth';
 import AvatarUploader from './AvatarUploader';
 import WhatsAppJoinCard from './WhatsAppJoinCard';
 
@@ -18,6 +20,7 @@ const genders = ['Male', 'Female', 'Other'];
 const FamilyMemberForm = ({ member, isSelf, onClose }) => {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { setUser } = useAuth();
   const isEditing = !!member;
   const [pendingAvatar, setPendingAvatar] = useState(null);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(member?.avatarUrl || null);
@@ -62,8 +65,19 @@ const FamilyMemberForm = ({ member, isSelf, onClose }) => {
       }
       return res;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       invalidateMemberCaches();
+      // Editing the Self member (or any member linked to the logged-in user)
+      // mirrors name/phone back to the User row server-side. Refresh the auth
+      // context so the greeting + sidebar reflect the change without a reload.
+      if (isEditing && isSelf) {
+        try {
+          const me = await authApi.getMe();
+          if (me?.data) setUser(me.data);
+        } catch {
+          // Non-fatal — user can refresh; don't block the success toast.
+        }
+      }
       toast.success(isEditing ? t('family.memberUpdated') : t('family.memberAdded'));
       onClose();
     },

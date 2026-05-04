@@ -80,9 +80,14 @@ public class FamilyService {
 
         familyMemberRepository.save(member);
 
-        // Keep linked User's phone/whatsapp in sync so escalation/alert paths stay correct
+        // Keep the linked User row in sync. Name is mirrored so the greeting,
+        // sidebar, and JWT-derived display strings update when the family head
+        // edits their own Self member (or renames a linked patient). Phone and
+        // whatsapp are mirrored so escalation/alert paths keep reaching the
+        // right number.
         if (member.getLinkedUser() != null) {
             User linked = member.getLinkedUser();
+            linked.setName(request.getName());
             linked.setPhone(request.getPhone());
             linked.setWhatsappPhone(request.getWhatsappPhone());
             userRepository.save(linked);
