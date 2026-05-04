@@ -11,6 +11,7 @@ import {
   Thermometer,
   Weight,
   Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +46,60 @@ const vitalTypeTabs = [
 const formatValue = (v) => {
   if (v.type === 'BP') return `${v.valuePrimary}/${v.valueSecondary}`;
   return `${v.valuePrimary}`;
+};
+
+// Derived from the loaded readings — same thresholds as AlertService on the
+// backend. Surfacing this as a UI banner makes the trend-alert feature visible
+// at a glance instead of only via the outbound WhatsApp message. The `vitals`
+// array is sorted DESC by recordedAt, so [0] is the most recent reading.
+const computeTrendAlert = (vitals, type) => {
+  if (!vitals || vitals.length === 0) return null;
+
+  if (type === 'BP') {
+    if (vitals.length < 3) return null;
+    const last3 = vitals.slice(0, 3);
+    const systolicAllHigh = last3.every((v) => (v.valuePrimary ?? 0) > 140);
+    const diastolicAllHigh = last3.every((v) => (v.valueSecondary ?? 0) > 90);
+    if (!systolicAllHigh && !diastolicAllHigh) return null;
+    const readings = last3.map((v) => `${v.valuePrimary}/${v.valueSecondary}`).join(' · ');
+    return {
+      title: '3 consecutive high BP readings',
+      detail: `${readings} mmHg — family head notified via WhatsApp with the actual numbers.`,
+    };
+  }
+
+  if (type === 'SUGAR') {
+    if (vitals.length < 2) return null;
+    const last2 = vitals.slice(0, 2);
+    if (!last2.every((v) => (v.valuePrimary ?? 0) > 126)) return null;
+    const readings = last2.map((v) => v.valuePrimary).join(' · ');
+    return {
+      title: '2 consecutive high blood sugar readings',
+      detail: `${readings} mg/dL — family head notified via WhatsApp.`,
+    };
+  }
+
+  if (type === 'PULSE') {
+    const latest = vitals[0];
+    const v = latest.valuePrimary ?? 0;
+    if (v >= 50 && v <= 110) return null;
+    return {
+      title: v < 50 ? 'Low pulse detected' : 'High pulse detected',
+      detail: `${v} bpm — family head notified via WhatsApp.`,
+    };
+  }
+
+  if (type === 'SPO2') {
+    const latest = vitals[0];
+    const v = latest.valuePrimary ?? 0;
+    if (v >= 92) return null;
+    return {
+      title: 'Low oxygen saturation',
+      detail: `SpO2 ${v}% — family head notified via WhatsApp.`,
+    };
+  }
+
+  return null;
 };
 
 const Vitals = () => {
@@ -218,6 +273,27 @@ const Vitals = () => {
               );
             })}
           </div>
+
+          {/* Trend alert banner — fires when the loaded readings cross the same
+              thresholds AlertService uses on the backend. */}
+          {(() => {
+            const trendAlert = computeTrendAlert(vitals, selectedType);
+            if (!trendAlert) return null;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4"
+                role="alert"
+              >
+                <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-red-900">{trendAlert.title}</p>
+                  <p className="text-xs text-red-700 mt-0.5">{trendAlert.detail}</p>
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Chart */}
           {vitalsLoading ? (
