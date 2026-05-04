@@ -66,4 +66,57 @@ class PrescriptionParserTest {
         assertTrue(parser.parse("").isEmpty());
         assertTrue(parser.parse("   ").isEmpty());
     }
+
+    @Test
+    void doesNotDoubleCountBrandPlusGenericFromCaptionLines() {
+        // Real failure mode: the Mehta Clinic prescription from 2026-05-04
+        // produced 11 medicines from 4 actual entries. OCR layouts split a single
+        // prescription row into the brand line and a caption line right under it
+        // ("Paracetamol | After food"); both matched independently. The fix:
+        // dedup by genericName + reject lines without any prescription signal
+        // (form / dosage / freq abbrev / triplet).
+        String ocrText = """
+                Dr. Mehta Clinic
+                DR. RAJESH A. MEHTA
+                MBBS, MD (Internal Medicine)
+                12, Alkapuri Society, Near City Park
+                Vadodara - 390 007, Gujarat
+                MCI REG. NO. 47382-A
+                PATIENT NAME: Karma Patel
+                AGE / SEX: 34 Yrs / Female
+                DATE: 04/05/2026
+                WEIGHT: 58 kg
+                DIAGNOSIS: Acute URTI · Gastritis
+                ALLERGIES: NKDA
+                Rx
+                1. Tab. Crocin 500 mg     BD x 5 Days
+                Paracetamol | After food  Twice daily
+                2. Tab. Pantop 40 mg     OD x 7 Days
+                Pantoprazole | Before breakfast  Once daily
+                3. Cap. Becosules     OD x 30 Days
+                B-Complex + Vitamin C | After food  Once daily
+                4. Syp. Grilinctus     BD x 5 Days
+                Cough Linctus | 2 tsp (10 mL) per dose  Twice daily
+                DOCTOR'S INSTRUCTIONS
+                Take plenty of warm fluids and rest. Avoid cold beverages and
+                oily/spicy food for at least 5 days. Return immediately if fever
+                exceeds 103 F, breathing difficulty, or symptoms worsen.
+                FOLLOW-UP APPOINTMENT 12 May 2026
+                Dr. Rajesh A. Mehta, MD - Internal Medicine
+                """;
+
+        List<DetectedMedicineResponse> results = parser.parse(ocrText);
+
+        assertEquals(4, results.size(),
+                () -> "Expected 4 medicines, got " + results.size() + ": "
+                        + results.stream().map(DetectedMedicineResponse::getName).toList());
+
+        List<String> names = results.stream().map(DetectedMedicineResponse::getName).toList();
+        assertTrue(names.contains("Crocin"),  "Crocin should be detected, got: " + names);
+        assertTrue(names.contains("Pantop"),  "Pantop should be detected, got: " + names);
+        assertTrue(names.contains("Grilinctus"), "Grilinctus should be detected, got: " + names);
+        // Becosules is dictionary entry "Becosule" — fuzzy match accepted.
+        assertTrue(names.stream().anyMatch(n -> n.toLowerCase().startsWith("becosule")),
+                "A Becosule(s) entry should be detected, got: " + names);
+    }
 }

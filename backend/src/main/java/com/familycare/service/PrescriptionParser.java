@@ -57,7 +57,20 @@ public class PrescriptionParser {
     public List<DetectedMedicineResponse> parse(String rawText) {
         if (rawText == null || rawText.isBlank()) return List.of();
 
-        Map<String, DetectedMedicineResponse> detected = new LinkedHashMap<>();
+        // Dedup by genericName, not brand. A real Indian prescription is laid
+        // out so that brand and generic appear on adjacent lines (e.g. "Tab.
+        // Crocin 500 mg" followed by "Paracetamol | After food"). Without this,
+        // both lines match independently — Crocin/Paracetamol and
+        // Paracetamol/Paracetamol — and the same active ingredient ends up as
+        // two separate rows. Keying by genericName collapses them into one,
+        // keeping the higher-confidence match.
+        //
+        // Trade-off: if a doctor genuinely prescribes two brands of the same
+        // active ingredient (Crocin + Dolo, both Paracetamol), they'd merge.
+        // That's a rare and arguably-correct outcome — you wouldn't want a
+        // patient taking both. The much more common case is the brand/generic
+        // duplicate from caption lines, which this fix eliminates.
+        Map<String, DetectedMedicineResponse> byGeneric = new LinkedHashMap<>();
         String[] lines = rawText.split("\\r?\\n");
 
         for (String rawLine : lines) {
@@ -67,16 +80,48 @@ public class PrescriptionParser {
             DetectedMedicineResponse match = matchLine(line);
             if (match == null) continue;
 
-            String key = match.getName().toLowerCase();
-            if (!detected.containsKey(key) || detected.get(key).getConfidence() < match.getConfidence()) {
-                detected.put(key, match);
+            String key = (match.getGenericName() != null
+                    ? match.getGenericName()
+                    : match.getName()).toLowerCase();
+            DetectedMedicineResponse existing = byGeneric.get(key);
+            if (existing == null || existing.getConfidence() < match.getConfidence()) {
+                byGeneric.put(key, match);
             }
         }
 
-        return new ArrayList<>(detected.values());
+        return new ArrayList<>(byGeneric.values());
+    }
+
+    /**
+     * A line counts as a real prescription line only if it carries at least one of:
+     * a form word (Tab/Cap/Syp/...), a dosage unit (mg/ml/mcg/...), a frequency
+     * abbreviation (BD/OD/TDS/...), or a triplet (1-0-1). Lines like
+     * "Paracetamol | After food | Twice daily" — caption text printed under the
+     * brand row — fail this check, so they no longer create a duplicate medicine
+     * row for the same active ingredient.
+     */
+    private boolean hasPrescriptionSignal(String line) {
+        if (DOSAGE_PATTERN.matcher(line).find()) return true;
+        if (FREQ_TRIPLET.matcher(line).find()) return true;
+
+        String lower = line.toLowerCase();
+        if (lower.contains("tab") || lower.contains("cap") || lower.contains("syp") ||
+            lower.contains("syrup") || lower.contains("inj") || lower.contains("drop") ||
+            lower.contains("cream") || lower.contains("ointment") || lower.contains("inhaler") ||
+            lower.contains("puff")) {
+            return true;
+        }
+
+        String upper = line.toUpperCase();
+        for (String abbrev : ABBREV_TO_FREQ.keySet()) {
+            if (upper.matches(".*\\b" + abbrev + "\\b.*")) return true;
+        }
+        return false;
     }
 
     private DetectedMedicineResponse matchLine(String line) {
+        if (!hasPrescriptionSignal(line)) return null;
+
         String[] tokens = line.split("[\\s,;()\\[\\]]+");
         IndianMedicineDictionary.Entry best = null;
         String matchedToken = null;
