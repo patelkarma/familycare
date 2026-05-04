@@ -143,7 +143,7 @@ const Dashboard = () => {
           { label: t('dashboard.familyMembers'), value: summary.memberCount ?? members.length, icon: Users, color: 'bg-blue-500', to: '/family' },
           { label: t('dashboard.activeMedicines'), value: activeMedicineCount, icon: Pill, color: 'bg-green-500', to: '/medicines' },
           { label: t('dashboard.dosesToday'), value: totalDoses, icon: Clock, color: 'bg-amber-500', to: '/doses-today' },
-          { label: t('dashboard.vitalsLogged'), value: '—', icon: Heart, color: 'bg-rose-500', to: '/vitals' },
+          { label: t('dashboard.vitalsLogged'), value: summary.vitalsLoggedThisWeek ?? 0, icon: Heart, color: 'bg-rose-500', to: '/vitals' },
         ].map((stat) => (
           <motion.div
             key={stat.label}

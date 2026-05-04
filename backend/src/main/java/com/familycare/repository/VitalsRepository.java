@@ -24,4 +24,6 @@ public interface VitalsRepository extends JpaRepository<Vitals, UUID> {
     List<Vitals> findTop1ByFamilyMemberIdAndTypeOrderByRecordedAtDesc(UUID memberId, String type);
 
     List<Vitals> findByFamilyMemberIdOrderByRecordedAtDesc(UUID memberId);
+
+    long countByFamilyMember_User_IdAndRecordedAtAfter(UUID userId, LocalDateTime after);
 }

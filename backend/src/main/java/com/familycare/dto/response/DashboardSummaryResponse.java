@@ -20,6 +20,7 @@ public class DashboardSummaryResponse {
     private LocalDate date;
     private int memberCount;
     private int activeMedicineCount;
+    private int vitalsLoggedThisWeek;
     private DoseStats todayDoseStats;
     private List<FamilyMemberResponse> members;
     private List<DailyScheduleResponse> familySchedules;

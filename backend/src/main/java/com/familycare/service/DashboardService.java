@@ -10,6 +10,7 @@ import com.familycare.repository.AppointmentRepository;
 import com.familycare.repository.FamilyMemberRepository;
 import com.familycare.repository.MedicineRepository;
 import com.familycare.repository.UserRepository;
+import com.familycare.repository.VitalsRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,7 @@ public class DashboardService {
     private final FamilyMemberRepository familyMemberRepository;
     private final MedicineRepository medicineRepository;
     private final AppointmentRepository appointmentRepository;
+    private final VitalsRepository vitalsRepository;
     private final ScheduleService scheduleService;
     private final ReportService reportService;
     private final FamilyService familyService;
@@ -98,6 +100,11 @@ public class DashboardService {
         DashboardSummaryResponse.DoseStats stats = computeDoseStats(familySchedules);
         Set<UUID> activeMedicineIds = collectActiveMedicineIds(familySchedules);
 
+        int vitalsThisWeek = isCaregiver
+                ? (int) vitalsRepository.countByFamilyMember_User_IdAndRecordedAtAfter(
+                        user.getId(), LocalDateTime.now().minusDays(7))
+                : 0;
+
         List<DashboardSummaryResponse.LowStockMedicine> lowStock = isCaregiver
                 ? collectLowStock(user.getId())
                 : List.of();
@@ -117,6 +124,7 @@ public class DashboardService {
                 .date(today)
                 .memberCount(members.size())
                 .activeMedicineCount(activeMedicineIds.size())
+                .vitalsLoggedThisWeek(vitalsThisWeek)
                 .members(members)
                 .familySchedules(familySchedules)
                 .todayDoseStats(stats)
