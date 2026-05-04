@@ -10,14 +10,17 @@ import org.springframework.stereotype.Component;
 public class HelpIntentHandler implements IntentHandler {
 
     public static final String HELP_TEXT = """
-            FamilyCare commands:
-            - TAKEN or 1 — mark dose as taken
-            - SKIP or 2 — mark dose as skipped
-            - BP 140 90 — log blood pressure
-            - SUGAR 110 — log blood sugar
-            - STOCK — see medicine stock
-            - SOS — alert emergency contacts
-            - HELP — show this menu""";
+            FamilyCare — reply with any of these:
+
+            ✅ Took it: TAKEN, OK, DONE, ✓, 👍, हाँ, लिया, kha liya
+            ❌ Skip it: SKIP, NO, ❌, 👎, नहीं, nahi
+            🩺 Log BP: BP 140 90
+            🍬 Log sugar: SUGAR 110
+            💊 Stock: STOCK
+            🚨 Emergency: SOS
+            ❓ Menu: HELP
+
+            Capital letters not needed.""";
 
     @Override
     public boolean supports(IntentType type) {

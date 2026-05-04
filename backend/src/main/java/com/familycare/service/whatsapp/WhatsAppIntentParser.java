@@ -13,8 +13,45 @@ public class WhatsAppIntentParser implements IntentParser {
     private static final Pattern SOS_PATTERN = Pattern.compile("^(SOS|EMERGENCY|HELP ME)$");
     private static final Pattern HELP_PATTERN = Pattern.compile("^(HELP|MENU|\\?|COMMANDS)$");
     private static final Pattern STOCK_PATTERN = Pattern.compile("^(STOCK|MEDICINES|MEDS)$");
-    private static final Pattern TAKEN_PATTERN = Pattern.compile("^(TAKEN|TOOK|T|1|YES)(\\s+(.+))?$");
-    private static final Pattern SKIP_PATTERN = Pattern.compile("^(SKIP|SKIPPED|S|2|NO)(\\s+(.+))?$");
+
+    // Affirmative replies an elderly Indian user might actually send. Ordered
+    // longest-first within ambiguous prefixes so e.g. "KHA LIYA" matches whole
+    // before "KHA" gobbles it and treats "LIYA" as a (wrong) member hint.
+    // toUpperCase is locale-default and a no-op on Devanagari + emoji code
+    // points, so those alternatives match as-is. Emoji variation selectors
+    // (U+FE0E / U+FE0F) are stripped during normalization below.
+    private static final Pattern TAKEN_PATTERN = Pattern.compile(
+            "^(" +
+                "TAKEN|TOOK|TAKE|" +
+                "GOT IT|GOTIT|" +
+                "OKAY|OK|DONE|FINISHED|FINE|" +
+                "YES|YEAH|YEP|YA|Y|" +
+                "T|1|K|" +
+                // Hinglish (Latin)
+                "HAAN|HAN|HA|JI|" +
+                "KHA LIYA|KHA LIA|KHALIYA|KHALIA|KHAYA|" +
+                "LIYA|LIA|" +
+                // Devanagari
+                "हाँ|हां|जी|लिया|खाया|खा लिया|" +
+                // Emoji (variation selectors stripped before matching)
+                "✅|✓|✔|👍|👌|💊" +
+            ")(\\s+(.+))?$");
+
+    private static final Pattern SKIP_PATTERN = Pattern.compile(
+            "^(" +
+                "SKIPPING|SKIPPED|SKIP|" +
+                "MISSED|MISS|" +
+                "NOT YET|NOTYET|LATER|" +
+                "NOPE|NAH|NO|N|" +
+                "S|2|" +
+                // Hinglish (Latin)
+                "NAHIN|NAHI|NA|MAT|" +
+                // Devanagari
+                "नहीं|नही|ना|" +
+                // Emoji
+                "❌|✖|✗|👎" +
+            ")(\\s+(.+))?$");
+
     private static final Pattern BP_PATTERN = Pattern.compile("^BP\\s+(\\d{2,3})[/\\s]+(\\d{2,3})$");
     private static final Pattern SUGAR_PATTERN = Pattern.compile("^SUGAR\\s+(\\d{2,3})$");
 
@@ -22,7 +59,9 @@ public class WhatsAppIntentParser implements IntentParser {
     public Intent parse(String rawBody) {
         if (rawBody == null) return Intent.of(IntentType.UNKNOWN, null);
         String normalized = rawBody.trim()
-                .replaceAll("[,:]", " ")
+                .replaceAll("[,:.!]", " ")
+                // Strip emoji variation selectors so ✔️ (U+2714 U+FE0F) collapses to ✔.
+                .replaceAll("[\\uFE0E\\uFE0F]", "")
                 .replaceAll("\\s+", " ")
                 .toUpperCase();
 
