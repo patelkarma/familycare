@@ -98,8 +98,12 @@ public class SosMessageBuilder {
         return s != null && !s.isBlank();
     }
 
+    // Trims to defend against stray whitespace / non-breaking spaces in stored
+    // names. WhatsApp bold formatting (*text*) silently breaks if there's any
+    // whitespace adjacent to the asterisks, so a single hidden U+00A0 in the
+    // name renders the asterisks as literal characters in the alert.
     private String safe(String s) {
-        return s == null ? "" : s;
+        return s == null ? "" : s.trim();
     }
 
     private Integer ageOf(LocalDate dob) {
