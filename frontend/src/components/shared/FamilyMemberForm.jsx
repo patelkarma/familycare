@@ -86,6 +86,20 @@ const FamilyMemberForm = ({ member, isSelf, onClose }) => {
     }
   };
 
+  // Mirror of handleAvatarUpload: edit flow hits the API; add flow just clears
+  // the locally stashed pending file (no member exists yet to delete from).
+  const handleAvatarRemove = async () => {
+    if (isEditing && member?.id) {
+      await familyApi.removeAvatar(member.id);
+      setCurrentAvatarUrl(null);
+      invalidateMemberCaches();
+      toast.success(t('profile.photoRemoved'));
+    } else {
+      setPendingAvatar(null);
+      setCurrentAvatarUrl(null);
+    }
+  };
+
   const onSubmit = (data) => {
     const cleaned = {
       ...data,
@@ -149,6 +163,7 @@ const FamilyMemberForm = ({ member, isSelf, onClose }) => {
               relationship={isSelf ? 'Self' : member?.relationship}
               size="xl"
               onUpload={handleAvatarUpload}
+              onRemove={handleAvatarRemove}
             />
             <p className="text-xs text-gray-400">
               {isEditing ? t('family.tapPhotoToChange') : t('family.tapToAddPhoto')}

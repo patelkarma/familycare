@@ -161,6 +161,36 @@ public class FamilyService {
     }
 
     @Transactional
+    public FamilyMemberResponse removeAvatar(UUID memberId, String userEmail) {
+        User user = getUser(userEmail);
+
+        if (!"FAMILY_HEAD".equals(user.getRole())) {
+            throw new CustomExceptions.ForbiddenException("Only caregivers can remove avatars");
+        }
+
+        FamilyMember member = familyMemberRepository.findByIdAndUserId(memberId, user.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Family member not found"));
+
+        // Only mirror the clear to the linked user when the avatar showing was
+        // actually the member's own (the upload path mirrors both URLs to the
+        // same value). If the member had no own avatar, the displayed photo is
+        // coming from the linked user's profile via resolveAvatar() — clearing
+        // it then would unexpectedly wipe that user's profile photo too.
+        String oldUrl = member.getAvatarUrl();
+        member.setAvatarUrl(null);
+        familyMemberRepository.save(member);
+
+        if (oldUrl != null && member.getLinkedUser() != null
+                && oldUrl.equals(member.getLinkedUser().getAvatarUrl())) {
+            User linked = member.getLinkedUser();
+            linked.setAvatarUrl(null);
+            userRepository.save(linked);
+        }
+
+        return toResponse(member);
+    }
+
+    @Transactional
     public FamilyMemberResponse unlinkAccount(UUID memberId, String userEmail) {
         User user = getUser(userEmail);
 

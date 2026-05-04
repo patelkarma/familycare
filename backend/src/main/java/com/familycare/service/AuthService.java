@@ -225,6 +225,24 @@ public class AuthService {
         return getCurrentUser(userEmail);
     }
 
+    @Transactional
+    public UserResponse removeAvatar(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("User not found"));
+
+        user.setAvatarUrl(null);
+        userRepository.save(user);
+
+        // Mirror the clear to the linked Self FamilyMember so it disappears from
+        // the Family list / Dashboard / Doses page in lockstep with the profile.
+        familyMemberRepository.findByLinkedUserId(user.getId()).ifPresent(m -> {
+            m.setAvatarUrl(null);
+            familyMemberRepository.save(m);
+        });
+
+        return getCurrentUser(userEmail);
+    }
+
     private UUID resolveFamilyMemberId(User user) {
         // For both roles, find the FamilyMember linked to this user account
         return familyMemberRepository.findByLinkedUserId(user.getId())

@@ -85,7 +85,9 @@
     "chronicConditions": "पुरानी बीमारियाँ",
     "editInFamily": "परिवार में विवरण संपादित करें →",
     "tapToChangePhoto": "फ़ोटो बदलने के लिए टैप करें",
-    "photoUpdated": "प्रोफ़ाइल फ़ोटो अपडेट हो गई"
+    "photoUpdated": "प्रोफ़ाइल फ़ोटो अपडेट हो गई",
+    "photoRemoved": "प्रोफ़ाइल फ़ोटो हटा दी गई",
+    "removePhoto": "फ़ोटो हटाएं"
   },
   "landing": {
     "tagline": "आपके परिवार के स्वास्थ्य की देखभाल",

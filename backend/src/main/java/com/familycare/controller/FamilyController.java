@@ -68,6 +68,13 @@ public class FamilyController {
         return ResponseEntity.ok(ApiResponse.success(member, "Avatar updated"));
     }
 
+    @DeleteMapping("/members/{id}/avatar")
+    public ResponseEntity<ApiResponse<FamilyMemberResponse>> removeAvatar(
+            @PathVariable UUID id, Authentication auth) {
+        FamilyMemberResponse member = familyService.removeAvatar(id, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(member, "Avatar removed"));
+    }
+
     @PostMapping("/members/{id}/link-account")
     public ResponseEntity<ApiResponse<FamilyMemberResponse>> linkAccount(
             @PathVariable UUID id, @Valid @RequestBody LinkAccountRequest request, Authentication auth) {

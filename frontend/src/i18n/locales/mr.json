@@ -85,7 +85,9 @@
     "chronicConditions": "जुने आजार",
     "editInFamily": "कुटुंबात तपशील संपादित करा →",
     "tapToChangePhoto": "फोटो बदलण्यासाठी टॅप करा",
-    "photoUpdated": "प्रोफाइल फोटो अद्ययावत झाला"
+    "photoUpdated": "प्रोफाइल फोटो अद्ययावत झाला",
+    "photoRemoved": "प्रोफाइल फोटो काढला",
+    "removePhoto": "फोटो काढा"
   },
   "landing": {
     "tagline": "तुमच्या कुटुंबाच्या आरोग्याची काळजी",

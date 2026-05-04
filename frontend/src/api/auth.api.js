@@ -13,6 +13,7 @@ export const authApi = {
       })
       .then((res) => res.data);
   },
+  removeAvatar: () => api.delete('/api/auth/me/avatar').then((res) => res.data),
   getWhatsAppJoinInfo: () =>
     api.get('/api/auth/whatsapp-join-info').then((res) => res.data),
 };

@@ -85,7 +85,9 @@
     "chronicConditions": "જૂની બીમારીઓ",
     "editInFamily": "કુટુંબમાં વિગતો સંપાદિત કરો →",
     "tapToChangePhoto": "ફોટો બદલવા ટેપ કરો",
-    "photoUpdated": "પ્રોફાઇલ ફોટો અપડેટ થયો"
+    "photoUpdated": "પ્રોફાઇલ ફોટો અપડેટ થયો",
+    "photoRemoved": "પ્રોફાઇલ ફોટો દૂર કર્યો",
+    "removePhoto": "ફોટો દૂર કરો"
   },
   "landing": {
     "tagline": "તમારા કુટુંબના આરોગ્યની સંભાળ",

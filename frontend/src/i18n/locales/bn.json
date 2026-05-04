@@ -85,7 +85,9 @@
     "chronicConditions": "দীর্ঘস্থায়ী অসুস্থতা",
     "editInFamily": "পরিবারে বিস্তারিত সম্পাদনা করুন →",
     "tapToChangePhoto": "ছবি পরিবর্তন করতে ট্যাপ করুন",
-    "photoUpdated": "প্রোফাইল ছবি আপডেট হয়েছে"
+    "photoUpdated": "প্রোফাইল ছবি আপডেট হয়েছে",
+    "photoRemoved": "প্রোফাইল ছবি সরানো হয়েছে",
+    "removePhoto": "ছবি সরান"
   },
   "landing": {
     "tagline": "আপনার পরিবারের স্বাস্থ্যের যত্ন",

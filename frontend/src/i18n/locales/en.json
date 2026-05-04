@@ -85,7 +85,9 @@
     "chronicConditions": "Chronic Conditions",
     "editInFamily": "Edit details in Family →",
     "tapToChangePhoto": "Tap the photo to change it",
-    "photoUpdated": "Profile photo updated"
+    "photoUpdated": "Profile photo updated",
+    "photoRemoved": "Profile photo removed",
+    "removePhoto": "Remove photo"
   },
   "landing": {
     "tagline": "Caring for your family's health",

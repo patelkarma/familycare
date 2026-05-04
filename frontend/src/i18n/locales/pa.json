@@ -85,7 +85,9 @@
     "chronicConditions": "ਪੁਰਾਣੀਆਂ ਬਿਮਾਰੀਆਂ",
     "editInFamily": "ਪਰਿਵਾਰ ਵਿੱਚ ਵੇਰਵੇ ਸੋਧੋ →",
     "tapToChangePhoto": "ਫੋਟੋ ਬਦਲਣ ਲਈ ਟੈਪ ਕਰੋ",
-    "photoUpdated": "ਪ੍ਰੋਫਾਈਲ ਫੋਟੋ ਅੱਪਡੇਟ ਹੋਈ"
+    "photoUpdated": "ਪ੍ਰੋਫਾਈਲ ਫੋਟੋ ਅੱਪਡੇਟ ਹੋਈ",
+    "photoRemoved": "ਪ੍ਰੋਫਾਈਲ ਫੋਟੋ ਹਟਾਈ ਗਈ",
+    "removePhoto": "ਫੋਟੋ ਹਟਾਓ"
   },
   "landing": {
     "tagline": "ਤੁਹਾਡੇ ਪਰਿਵਾਰ ਦੀ ਸਿਹਤ ਦੀ ਦੇਖਭਾਲ",

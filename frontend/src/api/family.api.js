@@ -17,4 +17,6 @@ export const familyApi = {
       })
       .then((res) => res.data);
   },
+  removeAvatar: (memberId) =>
+    api.delete(`/api/family/members/${memberId}/avatar`).then((res) => res.data),
 };

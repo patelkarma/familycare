@@ -69,6 +69,15 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response, "Profile photo updated"));
     }
 
+    @DeleteMapping("/me/avatar")
+    public ResponseEntity<ApiResponse<UserResponse>> removeMyAvatar(Authentication authentication) {
+        if (authentication == null) {
+            throw new CustomExceptions.UnauthorizedException("Authentication required");
+        }
+        UserResponse response = authService.removeAvatar(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(response, "Profile photo removed"));
+    }
+
     @GetMapping("/whatsapp-join-info")
     public ResponseEntity<ApiResponse<Map<String, String>>> getWhatsAppJoinInfo() {
         String joinText = "join " + sandboxCode;

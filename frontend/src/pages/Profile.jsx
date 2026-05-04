@@ -49,6 +49,16 @@ const Profile = () => {
     toast.success(t('profile.photoUpdated'));
   };
 
+  const handleAvatarRemove = async () => {
+    await authApi.removeAvatar();
+    setUser((u) => (u ? { ...u, avatarUrl: null } : u));
+    queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['familyOverview'] });
+    queryClient.invalidateQueries({ queryKey: ['adherenceSummary'] });
+    toast.success(t('profile.photoRemoved'));
+  };
+
   const compactItems = [
     { icon: User, label: t('profile.fullName'), value: user?.name },
     { icon: Mail, label: t('profile.emailAddress'), value: user?.email },
@@ -100,6 +110,7 @@ const Profile = () => {
               relationship="Self"
               size="xl"
               onUpload={handleAvatarUpload}
+              onRemove={handleAvatarRemove}
             />
           </motion.div>
         </div>
