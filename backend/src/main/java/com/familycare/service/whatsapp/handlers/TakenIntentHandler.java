@@ -87,9 +87,19 @@ public class TakenIntentHandler implements IntentHandler {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
+        // PENDING preferred, MISSED accepted as a fallback. Elderly users often reply
+        // hours after the reminder — by then the 30-min watchdog has already flipped
+        // the dose to MISSED. Without this fallback, "ok" / "lia" / "✅" would hit
+        // "no pending dose" even though they obviously meant the morning reminder
+        // they're now responding to.
         List<MedicineLog> pending = medicineLogRepository
                 .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
                         member.getId(), "PENDING", startOfDay, endOfDay);
+        if (pending.isEmpty()) {
+            pending = medicineLogRepository
+                    .findByFamilyMemberIdAndStatusAndScheduledTimeBetween(
+                            member.getId(), "MISSED", startOfDay, endOfDay);
+        }
 
         if (pending.isEmpty()) return null;
 

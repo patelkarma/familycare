@@ -51,6 +51,7 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [resendingTiming, setResendingTiming] = useState(null);
+  const [markingTiming, setMarkingTiming] = useState(null);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['medicines', memberId] });
@@ -72,6 +73,34 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
       setResendingTiming(null);
       const msg = err.response?.data?.message || 'Failed to resend reminder';
       toast.error(msg);
+    },
+  });
+
+  const markTakenMutation = useMutation({
+    mutationFn: ({ timing }) =>
+      medicinesApi.markTaken(medicine.id, { doseTiming: timing, notes: '' }),
+    onSuccess: () => {
+      setMarkingTiming(null);
+      invalidateAll();
+      toast.success(t('status.taken'));
+    },
+    onError: (err) => {
+      setMarkingTiming(null);
+      toast.error(err.response?.data?.message || t('common.error'));
+    },
+  });
+
+  const markSkippedMutation = useMutation({
+    mutationFn: ({ timing }) =>
+      medicinesApi.markSkipped(medicine.id, { doseTiming: timing, notes: '' }),
+    onSuccess: () => {
+      setMarkingTiming(null);
+      invalidateAll();
+      toast.success(t('status.skipped'));
+    },
+    onError: (err) => {
+      setMarkingTiming(null);
+      toast.error(err.response?.data?.message || t('common.error'));
     },
   });
 
@@ -327,30 +356,82 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
                   )}
                 </div>
 
-                {/* Resend button for PENDING or MISSED */}
+                {/* Action buttons for PENDING or MISSED:
+                    - Mark Taken (primary, in case the elder forgot to reply)
+                    - Skip (secondary)
+                    - Resend reminder (existing path)
+                  */}
                 {(status === 'PENDING' || status === 'MISSED') && (
-                  <motion.button
-                    onClick={() => {
-                      setResendingTiming(key.toUpperCase());
-                      resendMutation.mutate({ timing: key.toUpperCase() });
-                    }}
-                    disabled={resendingTiming !== null}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50 shrink-0"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    title={t('common.continue')}
-                  >
-                    {resendingTiming === key.toUpperCase() ? (
-                      <motion.div
-                        className="w-3 h-3 border-2 border-green-300 border-t-green-700 rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      />
-                    ) : (
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    )}
-                    Resend
-                  </motion.button>
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                    <motion.button
+                      onClick={() => {
+                        setMarkingTiming(key.toUpperCase() + ':TAKEN');
+                        markTakenMutation.mutate({ timing: key.toUpperCase() });
+                      }}
+                      disabled={markingTiming !== null || resendingTiming !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title={t('status.taken')}
+                    >
+                      {markingTiming === key.toUpperCase() + ':TAKEN' ? (
+                        <motion.div
+                          className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        />
+                      ) : (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
+                      {t('status.taken')}
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => {
+                        setMarkingTiming(key.toUpperCase() + ':SKIPPED');
+                        markSkippedMutation.mutate({ timing: key.toUpperCase() });
+                      }}
+                      disabled={markingTiming !== null || resendingTiming !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title={t('status.skipped')}
+                    >
+                      {markingTiming === key.toUpperCase() + ':SKIPPED' ? (
+                        <motion.div
+                          className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        />
+                      ) : (
+                        <SkipForward className="w-3.5 h-3.5" />
+                      )}
+                      {t('status.skipped')}
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => {
+                        setResendingTiming(key.toUpperCase());
+                        resendMutation.mutate({ timing: key.toUpperCase() });
+                      }}
+                      disabled={resendingTiming !== null || markingTiming !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title={t('common.continue')}
+                    >
+                      {resendingTiming === key.toUpperCase() ? (
+                        <motion.div
+                          className="w-3 h-3 border-2 border-green-300 border-t-green-700 rounded-full"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        />
+                      ) : (
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      )}
+                      Resend
+                    </motion.button>
+                  </div>
                 )}
               </motion.div>
             );

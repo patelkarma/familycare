@@ -137,9 +137,12 @@ public class MedicineService {
         User user = getUser(userEmail);
         Medicine medicine = resolveMedicine(medicineId, user);
 
-        Optional<MedicineLog> existingLog = findExistingLog(medicineId, doseTiming);
-        if (existingLog.isPresent() && "PENDING".equals(existingLog.get().getStatus())
-                && "FAMILY_HEAD".equals(user.getRole())) {
+        // Block the family head from racing a pending elder reply only when the
+        // elder has their OWN account and could plausibly respond — i.e. the
+        // member has a linkedUser distinct from the head. For Self members
+        // (linkedUser == head) and unlinked members (no separate patient
+        // account), the head is the only person who can mark, so we don't gate.
+        if (existsPendingForLinkedElder(medicineId, doseTiming, medicine, user)) {
             throw new CustomExceptions.ConflictException(
                     "Reminder already sent for this dose at " +
                             doseTiming.toLowerCase() + " time. Waiting for " +
@@ -147,6 +150,15 @@ public class MedicineService {
         }
 
         return markTakenInternal(medicine, doseTiming, notes, user, "APP");
+    }
+
+    private boolean existsPendingForLinkedElder(
+            UUID medicineId, String doseTiming, Medicine medicine, User actor) {
+        if (!"FAMILY_HEAD".equals(actor.getRole())) return false;
+        Optional<MedicineLog> existing = findExistingLog(medicineId, doseTiming);
+        if (existing.isEmpty() || !"PENDING".equals(existing.get().getStatus())) return false;
+        User linked = medicine.getFamilyMember().getLinkedUser();
+        return linked != null && !actor.getId().equals(linked.getId());
     }
 
     /**
@@ -162,7 +174,12 @@ public class MedicineService {
         if (existingLog.isPresent()) {
             MedicineLog existing = existingLog.get();
             switch (existing.getStatus()) {
-                case "PENDING" -> {
+                // MISSED is non-terminal: the user actually took the medicine, they just
+                // forgot to confirm before the 30-min watchdog flipped the status.
+                // Treating it like PENDING here makes "I took it, just replying late"
+                // (via WhatsApp or the app) actually update the dose instead of being
+                // rejected with "already marked as missed".
+                case "PENDING", "MISSED" -> {
                     existing.setStatus("TAKEN");
                     existing.setTakenAt(LocalDateTime.now());
                     existing.setMarkedBy(markedBy);
@@ -217,9 +234,8 @@ public class MedicineService {
         User user = getUser(userEmail);
         Medicine medicine = resolveMedicine(medicineId, user);
 
-        Optional<MedicineLog> existingLog = findExistingLog(medicineId, doseTiming);
-        if (existingLog.isPresent() && "PENDING".equals(existingLog.get().getStatus())
-                && "FAMILY_HEAD".equals(user.getRole())) {
+        // Same race-protection logic as markTaken — only block for linked elders.
+        if (existsPendingForLinkedElder(medicineId, doseTiming, medicine, user)) {
             throw new CustomExceptions.ConflictException(
                     "Reminder already sent for this dose at " +
                             doseTiming.toLowerCase() + " time. Waiting for " +
@@ -238,7 +254,8 @@ public class MedicineService {
         if (existingLog.isPresent()) {
             MedicineLog existing = existingLog.get();
             switch (existing.getStatus()) {
-                case "PENDING" -> {
+                // Same MISSED-as-non-terminal rationale as markTakenInternal.
+                case "PENDING", "MISSED" -> {
                     existing.setStatus("SKIPPED");
                     existing.setMarkedBy(markedBy);
                     existing.setNotes(notes);
