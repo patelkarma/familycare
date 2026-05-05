@@ -475,110 +475,25 @@ cd frontend && npm test
 
 ---
 
-## 🗂 Project layout
+## 🗺 What's next
 
-```
-familycare/
-├── backend/                                 ← Spring Boot 3.5
-│   └── src/main/java/com/familycare/
-│       ├── config/        Security + CORS + Cloudinary + Redis + OpenAPI +
-│       │                  WhatsApp bot async pool + SOS fan-out pool
-│       ├── controller/    15 REST controllers — Auth / Family / Medicines /
-│       │                  Vitals / Reports / SOS / Dashboard / Webhooks / AI
-│       ├── service/
-│       │   ├── ai/                Gemini chat + pill identifier
-│       │   │                      (@CircuitBreaker + @Retry on entry points)
-│       │   ├── interactions/      RxNav + OpenFDA drug interaction lookup
-│       │   ├── whatsapp/          Bot pipeline — IntentParser, SenderResolver,
-│       │   │                      IdempotencyService, intent handlers (TAKEN /
-│       │   │                      SKIP / STOCK / SOS / HELP / VITALS),
-│       │   │                      TwilioSignatureValidator
-│       │   ├── ReminderService    Redis-staged delay queue
-│       │   ├── SosMessageBuilder  NBSP-safe regex; WhatsApp + SMS bodies
-│       │   ├── PrescriptionParser Dictionary lookup w/ dedup-by-generic +
-│       │   │                      prescription-signal gate
-│       │   └── WhatsAppService    Twilio outbound (@CircuitBreaker)
-│       ├── scheduler/     ReminderScheduler (minutely cron) +
-│       │                  AppointmentReminderScheduler
-│       ├── repository/    Spring Data JPA repos (custom @Query for last-N
-│       │                  vitals lookups)
-│       ├── model/         JPA entities — User / FamilyMember / Medicine /
-│       │                  MedicineLog / Vitals / EmergencyContact / SosEvent
-│       ├── dto/request +  Validated request DTOs + structured response
-│       │   dto/response   (DashboardAlert ships messageKey + params for i18n)
-│       ├── security/
-│       │   ├── JwtUtil, JwtFilter, UserDetailsServiceImpl
-│       │   └── ratelimit/         Bucket4j RateLimitRule + Service +
-│       │                          Interceptor (post-JWT for user-keyed limits)
-│       └── exception/     GlobalExceptionHandler — uniform JSON error envelope
-│                          (incl. 429 with Retry-After for rate-limited routes)
-│   └── src/main/resources/
-│       └── application.properties  Resilience4j + actuator config
-│   └── src/test/...       91 tests (90 unit + 1 actuator integration);
-│                          Testcontainers Postgres + Redis
-│
-├── frontend/                                ← React 19 + Vite
-│   └── src/
-│       ├── pages/         Landing / Auth / Dashboard / Family / Medicines /
-│       │                  Vitals / Reports / SosSetup / AskAI / Settings
-│       ├── components/
-│       │   ├── dashboard/    AlertBanner (i18n plural), TodayDoseGrid,
-│       │   │                 FamilySummaryCard, vitals tile
-│       │   ├── medicines/    PrescriptionScanner (Tesseract.js), MedicineCard
-│       │   │                 with 3-button row (Taken / Skip / Resend)
-│       │   ├── vitals/       VitalsChart (Recharts) + computeTrendAlert
-│       │   ├── sos/          SOSButton + emergency contact cards
-│       │   └── shared/       AvatarUploader, LanguagePicker, FamilyMemberForm
-│       ├── api/           Axios instance with JWT interceptor + per-feature
-│       │                  API modules
-│       ├── hooks/         useAuth, useFamilyMembers, useReminders
-│       └── i18n/          9 locale files (en/hi/gu/mr/bn/ta/te/kn/pa) +
-│                          drift test in Vitest
-│
-└── docs/
-    ├── ARCHITECTURE.md    System diagram + reminder lifecycle
-    ├── DECISIONS.md       6 ADRs (monolith, JWT, Render, regex parser,
-    │                      WhatsApp-only, Resilience4j)
-    └── screenshots/       7 hero + feature shots used in this README
-```
+What's shipped vs. what's queued. Granular history is in [CHANGELOG.md](docs/CHANGELOG.md) (eventually) and the commit log.
+
+- **Done** — JWT + multi-tenant family auth · Self-member identity mirroring · Redis-staged reminder cron · Twilio outbound + inbound NLU (English / Hinglish / Devanagari / emoji) · 3-strike vitals trend detector · Tesseract.js OCR · 4-table SOS aggregation · Resilience4j circuit breakers · Bucket4j rate limiting · Prometheus metrics · 9 ADRs · 9-language i18n with plural forms
+- **Queued** — Fast2SMS fallback for non-WhatsApp users · Sentry on FE+BE · k6 load tests with documented p95 numbers · PWA + offline cache · Caffeine-backed rate-limit eviction when a real abuser shows up
 
 ---
 
-## 🗺 Roadmap
+## 💭 What I learned
 
-What's shipped and what's next.
+A handful of things from this project that changed how I write code:
 
-- **Phase 1 — Foundation** ✅ JWT auth + multi-tenant family auth + Self-member identity mirroring + JPA schema + Render/Vercel/Supabase wiring
-- **Phase 2 — Reminders + Vitals** ✅ Redis-staged delay queue + minutely `@Scheduled` cron + Twilio outbound + 3-strike vitals trend detector + auto-escalation
-- **Phase 3 — Inbound NLU** ✅ WhatsApp signature verification + idempotency + intent parser (English casual / Hinglish / Devanagari / emoji, 75 parameterized tests) + per-intent handlers
-- **Phase 4 — Unique features** ✅ Tesseract.js OCR + curated 100+ entry Indian medicine dictionary + dedup-by-generic + prescription-signal gate; 4-table SOS aggregation; medical report locker
-- **Phase 5 — Hardening** ✅ Resilience4j circuit breaker on Twilio + Gemini · Bucket4j rate limiting on auth + SOS · Prometheus metrics + ActuatorPrometheusIntegrationTest · 9 ADRs · structured i18n alerts (messageKey + params, 9 languages with plural forms) · Unicode-defensive SOS rendering
-- **Phase 6 — Polish** ✅ 7-shot README screenshot grid · sequence diagrams for the 3 most-asked flows · "See it in 60 seconds" walkthrough · 6 production bug fixes documented with commit links
-- **Phase 7 — Roadmap** Fast2SMS fallback channel · Sentry on FE+BE · k6 load tests with documented p95 numbers · PWA + offline cache · push notifications via FCM · Caffeine-backed rate-limit eviction once a real abuser shows up
-
----
-
-## 💭 What I learned building this
-
-### On talking to humans
-- "TAKEN" is what a developer types. "ok", "lia", "✅", "खा लिया" is what an elderly mother actually sends. The matcher is the product.
-- Late replies are the rule, not the exception. Treating `MISSED` as terminal locks out the user at exactly the moment they're trying to do the right thing.
-- The fallback message is the feature. *"Location unavailable — please call them to confirm"* tells the recipient what to do next; *no location at all* leaves them lost.
-
-### On hidden complexity
-- A non-breaking space (`U+00A0`) silently broke a SQL `WHERE`, then silently broke WhatsApp bold formatting. Java's `trim()` and `strip()` both ignore it. The fix is one regex but the lesson is wider — *always normalize Unicode at trust boundaries*.
-- Lambda variable capture rejects reassignment. Local incremental compiles silently slip past it; only a clean build catches it. After this, I run `./mvnw clean compile` before pushing changes that touch lambda capture sites.
-- Vercel's SPA routing 404s on `/dashboard` refresh unless you ship a `vercel.json` rewrite. Easy to miss because dev-mode routing works fine.
-
-### On honest engineering
-- A regex parser that handles 70% reliably and *fails visibly* on the rest beats an LLM parser that confidently hallucinates the 30%. Document the seam (`PrescriptionParser.parse`) so swapping is one class change when the cost equation flips.
-- Render's free tier sleeping after 15 min idle isn't a bug to hide — it's a constraint to mitigate. UptimeRobot for $0 is a better answer than $7/mo until a real user complains.
-- Every interesting decision deserves an ADR. *Why we didn't pick microservices* is more useful in code review than the architecture itself.
-
-### On building for failure
-- Two outbound dependencies, two different failure modes — Twilio throttles, Gemini quota-exhausts. Wrapping both with a circuit breaker is the difference between "intermittent reminder skip" and "the entire reminder loop ate latency for 20 minutes."
-- Spring AOP only intercepts proxy calls. `@CircuitBreaker` on a private method silently does nothing. Every annotation that depends on a proxy needs a public entry point — caught against the docs, not by tests.
-- Metrics that exist on a wiki are not metrics. Lock the wiring in with an integration test that asserts every counter name appears in the `/actuator/prometheus` body so a refactor that drops one fails before merge.
+- **The matcher is the product.** "TAKEN" is what a developer types; `ok`, `लिया`, `✅`, `khā liyā` is what an elderly mother actually sends. Treating the parser as the surface (not the UI) is what makes the bot work for the audience that will never install an app.
+- **Late replies are the rule, not the exception.** Treating `MISSED` as a terminal status locks out the user at exactly the moment they're trying to do the right thing. State machines need to be honest about real human latency.
+- **Always normalize Unicode at trust boundaries.** A `U+00A0` (non-breaking space) silently broke a SQL `WHERE` clause, then silently broke WhatsApp bold formatting. Java's `trim()` and `strip()` both ignore it. The fix is one regex; the lesson is wider.
+- **Spring AOP only intercepts proxy calls.** `@CircuitBreaker` on a private method silently does nothing — the self-invocation bypasses the proxy. Caught against the docs, not by tests. Every proxy-dependent annotation needs a public entry point.
+- **Metrics that live on a wiki are not metrics.** An integration test that asserts every counter name appears in `/actuator/prometheus` is the difference between "we have observability" and "we *had* observability before that refactor."
+- **A regex parser that handles 70% reliably and fails visibly beats an LLM parser that hallucinates the 30%.** Document the seam so swapping is one class change when the cost equation flips.
 
 ---
 
