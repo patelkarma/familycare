@@ -3,6 +3,8 @@ package com.familycare.service.ai;
 import com.familycare.exception.CustomExceptions;
 import com.familycare.service.ai.dto.ChatMessage;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -48,7 +51,14 @@ public class GeminiClient {
      * Sends a chat completion request to Gemini and returns the model's text reply.
      * History uses "user" / "assistant" roles in our DTO; we translate "assistant"
      * to Gemini's "model" role.
+     *
+     * Annotations live on the public entry points (not {@link #invoke}) because
+     * Spring AOP only intercepts external proxy calls — a self-invocation from
+     * chat() to invoke() bypasses the proxy and the breaker would never see
+     * the call.
      */
+    @Retry(name = "gemini", fallbackMethod = "chatFallback")
+    @CircuitBreaker(name = "gemini", fallbackMethod = "chatFallback")
     public String chat(String systemPrompt, List<ChatMessage> history, String userMessage) {
         return invoke(systemPrompt, history, userMessage, null, null);
     }
@@ -56,6 +66,8 @@ public class GeminiClient {
     /**
      * Vision call: same model, but the user turn includes an inline image.
      */
+    @Retry(name = "gemini", fallbackMethod = "chatWithImageFallback")
+    @CircuitBreaker(name = "gemini", fallbackMethod = "chatWithImageFallback")
     public String chatWithImage(String systemPrompt, String userMessage,
                                 String imageBase64, String mimeType) {
         return invoke(systemPrompt, null, userMessage, imageBase64, mimeType);
@@ -145,10 +157,46 @@ public class GeminiClient {
             }
             throw new CustomExceptions.BadRequestException(
                     "AI is unavailable right now (" + status.value() + "). Please try again.");
+        } catch (HttpServerErrorException e) {
+            // 5xx — let the retry / breaker see it as a real failure
+            log.error("Gemini 5xx: {}", e.getMessage());
+            throw e;
         } catch (RestClientException e) {
-            log.error("Gemini call failed: {}", e.getMessage());
-            throw new CustomExceptions.BadRequestException(
-                    "AI is unavailable right now. Please try again in a moment.");
+            // network blip / timeout — retryable
+            log.error("Gemini transport error: {}", e.getMessage());
+            throw e;
         }
+    }
+
+    /**
+     * Resilience4j fallback for chat(). Signature must match the protected
+     * method's parameters plus a trailing Throwable. Returns a polite
+     * degradation message so the chat UI still renders a reply when the
+     * breaker is OPEN, but lets BadRequestException (auth/quota/404) propagate
+     * so the frontend toast can tell the user what to fix.
+     */
+    @SuppressWarnings("unused")
+    public String chatFallback(String systemPrompt, List<ChatMessage> history,
+                               String userMessage, Throwable t) {
+        return degrade(t);
+    }
+
+    @SuppressWarnings("unused")
+    public String chatWithImageFallback(String systemPrompt, String userMessage,
+                                        String imageBase64, String mimeType,
+                                        Throwable t) {
+        return degrade(t);
+    }
+
+    private String degrade(Throwable t) {
+        if (t instanceof CustomExceptions.BadRequestException) {
+            throw (CustomExceptions.BadRequestException) t;
+        }
+        if (t instanceof io.github.resilience4j.circuitbreaker.CallNotPermittedException) {
+            log.warn("Gemini circuit OPEN — degrading to fallback message");
+            return "AI assistant is temporarily unavailable. Please try again in a minute.";
+        }
+        log.error("Gemini fallback fired: {}", t.getMessage());
+        return "AI assistant is temporarily unavailable. Please try again in a minute.";
     }
 }

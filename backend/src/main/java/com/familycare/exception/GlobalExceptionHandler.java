@@ -1,7 +1,9 @@
 package com.familycare.exception;
 
 import com.familycare.dto.response.ApiResponse;
+import com.familycare.security.ratelimit.TooManyRequestsException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -47,6 +49,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CustomExceptions.BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(CustomExceptions.BadRequestException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimit(TooManyRequestsException ex) {
+        // Spec-compliant 429 with Retry-After (in seconds). The frontend's
+        // axios error interceptor reads this header and surfaces a toast.
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
                 .body(ApiResponse.error(ex.getMessage()));
     }
 

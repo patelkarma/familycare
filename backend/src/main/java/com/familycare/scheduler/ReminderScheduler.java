@@ -7,7 +7,8 @@ import com.familycare.repository.MedicineRepository;
 import com.familycare.repository.ReminderLogRepository;
 import com.familycare.service.ReminderService;
 import com.familycare.service.WhatsAppService;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class ReminderScheduler {
 
@@ -27,6 +27,31 @@ public class ReminderScheduler {
     private final ReminderLogRepository reminderLogRepository;
     private final MedicineRepository medicineRepository;
     private final MedicineLogRepository medicineLogRepository;
+    private final Counter remindersSent;
+    private final Counter remindersFailed;
+    private final Counter escalations;
+
+    public ReminderScheduler(ReminderService reminderService,
+                             WhatsAppService whatsAppService,
+                             ReminderLogRepository reminderLogRepository,
+                             MedicineRepository medicineRepository,
+                             MedicineLogRepository medicineLogRepository,
+                             MeterRegistry registry) {
+        this.reminderService = reminderService;
+        this.whatsAppService = whatsAppService;
+        this.reminderLogRepository = reminderLogRepository;
+        this.medicineRepository = medicineRepository;
+        this.medicineLogRepository = medicineLogRepository;
+        this.remindersSent = Counter.builder("familycare.reminders.sent")
+                .description("Medicine reminders successfully sent via WhatsApp")
+                .register(registry);
+        this.remindersFailed = Counter.builder("familycare.reminders.failed")
+                .description("Medicine reminders that failed at the WhatsApp step")
+                .register(registry);
+        this.escalations = Counter.builder("familycare.reminders.escalated")
+                .description("Missed-dose escalations sent to family head")
+                .register(registry);
+    }
 
     @Scheduled(cron = "0 * * * * *")
     public void checkAndSendReminders() {
@@ -55,6 +80,7 @@ public class ReminderScheduler {
                 );
 
                 boolean sent = whatsAppService.sendWhatsApp(phone, message);
+                if (sent) remindersSent.increment(); else remindersFailed.increment();
 
                 // Log the reminder
                 UUID medicineId = UUID.fromString(reminder.get("medicineId"));
@@ -110,6 +136,7 @@ public class ReminderScheduler {
                             pendingLog.getMedicine().getName()
                     );
                     whatsAppService.sendWhatsApp(familyHeadPhone, message);
+                    escalations.increment();
 
                     ReminderLog escalationLog = ReminderLog.builder()
                             .medicine(pendingLog.getMedicine())

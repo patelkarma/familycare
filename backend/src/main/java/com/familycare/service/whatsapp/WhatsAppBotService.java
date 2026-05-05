@@ -3,6 +3,7 @@ package com.familycare.service.whatsapp;
 import com.familycare.service.WhatsAppService;
 import com.familycare.service.whatsapp.dto.Intent;
 import com.familycare.service.whatsapp.dto.SenderContext;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,22 @@ public class WhatsAppBotService {
     private final List<IntentHandler> handlers;
     private final WhatsAppService whatsAppService;
     private final HelpFallback helpFallback;
+    private final MeterRegistry meterRegistry;
 
     public WhatsAppBotService(IntentParser intentParser,
                               SenderResolver senderResolver,
                               IdempotencyService idempotencyService,
                               List<IntentHandler> handlers,
                               WhatsAppService whatsAppService,
-                              HelpFallback helpFallback) {
+                              HelpFallback helpFallback,
+                              MeterRegistry meterRegistry) {
         this.intentParser = intentParser;
         this.senderResolver = senderResolver;
         this.idempotencyService = idempotencyService;
         this.handlers = handlers;
         this.whatsAppService = whatsAppService;
         this.helpFallback = helpFallback;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -58,6 +62,8 @@ public class WhatsAppBotService {
 
             Intent intent = intentParser.parse(body);
             log.info("Inbound intent={} from={} ambiguous={}", intent.getType(), maskPhone(from), ctx.isAmbiguous());
+            meterRegistry.counter("familycare.whatsapp.inbound",
+                    "intent", intent.getType().name().toLowerCase()).increment();
 
             String reply = handlers.stream()
                     .filter(h -> h.supports(intent.getType()))

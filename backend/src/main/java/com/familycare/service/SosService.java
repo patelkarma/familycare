@@ -10,7 +10,8 @@ import com.familycare.model.*;
 import com.familycare.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SosService {
 
@@ -38,9 +38,40 @@ public class SosService {
     private final SosMessageBuilder messageBuilder;
     private final ObjectMapper objectMapper;
     private final ExecutorService sosFanOutExecutor;
+    private final Counter sosTriggered;
+    private final Counter sosBlockedByCooldown;
 
     private static final long COOLDOWN_SECONDS = 60;
     private static final long FAN_OUT_TIMEOUT_SECONDS = 12;
+
+    public SosService(EmergencyContactRepository contactRepository,
+                      SosEventRepository eventRepository,
+                      FamilyMemberRepository familyMemberRepository,
+                      UserRepository userRepository,
+                      MedicineRepository medicineRepository,
+                      ReportRepository reportRepository,
+                      WhatsAppService whatsAppService,
+                      SosMessageBuilder messageBuilder,
+                      ObjectMapper objectMapper,
+                      ExecutorService sosFanOutExecutor,
+                      MeterRegistry registry) {
+        this.contactRepository = contactRepository;
+        this.eventRepository = eventRepository;
+        this.familyMemberRepository = familyMemberRepository;
+        this.userRepository = userRepository;
+        this.medicineRepository = medicineRepository;
+        this.reportRepository = reportRepository;
+        this.whatsAppService = whatsAppService;
+        this.messageBuilder = messageBuilder;
+        this.objectMapper = objectMapper;
+        this.sosFanOutExecutor = sosFanOutExecutor;
+        this.sosTriggered = Counter.builder("familycare.sos.triggered")
+                .description("SOS events that fanned out alerts to emergency contacts")
+                .register(registry);
+        this.sosBlockedByCooldown = Counter.builder("familycare.sos.blocked_cooldown")
+                .description("SOS attempts rejected because the 60s cooldown was active")
+                .register(registry);
+    }
 
     // ─────────────────────────────────────────────────────────────────
     // Emergency Contacts CRUD
@@ -163,6 +194,7 @@ public class SosService {
                 .ifPresent(last -> {
                     long secondsAgo = ChronoUnit.SECONDS.between(last.getTriggeredAt(), LocalDateTime.now());
                     if (secondsAgo < COOLDOWN_SECONDS) {
+                        sosBlockedByCooldown.increment();
                         throw new CustomExceptions.BadRequestException(
                                 "SOS recently triggered " + secondsAgo + "s ago. Please wait "
                                         + (COOLDOWN_SECONDS - secondsAgo) + "s before trying again.");
@@ -206,6 +238,7 @@ public class SosService {
 
         log.warn("SOS triggered for member={} by user={} contacts={} eventId={}",
                 member.getName(), user.getEmail(), contacts.size(), saved.getId());
+        sosTriggered.increment();
 
         return SosTriggerResponse.builder()
                 .eventId(saved.getId())

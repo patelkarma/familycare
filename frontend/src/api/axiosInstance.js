@@ -21,6 +21,17 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       window.location.href = '/';
     }
+    // 429 from the Bucket4j interceptor ships a Retry-After header (seconds).
+    // Rewrite the error message so per-call onError handlers surface a useful
+    // toast ("Try again in N seconds") instead of the raw "Rate limit exceeded".
+    if (error.response?.status === 429) {
+      const retryAfter = parseInt(error.response.headers?.['retry-after'], 10);
+      if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        error.message = `Too many attempts. Try again in ${retryAfter} second${retryAfter === 1 ? '' : 's'}.`;
+      } else {
+        error.message = 'Too many attempts. Please wait a minute and try again.';
+      }
+    }
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
       error.message = 'Server is waking up, please try again in a moment.';
     } else if (!error.response) {

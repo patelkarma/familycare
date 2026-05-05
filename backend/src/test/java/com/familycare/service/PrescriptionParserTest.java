@@ -2,6 +2,7 @@ package com.familycare.service;
 
 import com.familycare.config.IndianMedicineDictionary;
 import com.familycare.dto.response.DetectedMedicineResponse;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +17,7 @@ class PrescriptionParserTest {
     @BeforeEach
     void setUp() {
         // The dictionary is a no-arg @Component; we can construct it directly for tests.
-        parser = new PrescriptionParser(new IndianMedicineDictionary());
+        parser = new PrescriptionParser(new IndianMedicineDictionary(), new SimpleMeterRegistry());
     }
 
     @Test

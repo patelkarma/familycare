@@ -2,7 +2,8 @@ package com.familycare.service;
 
 import com.familycare.config.IndianMedicineDictionary;
 import com.familycare.dto.response.DetectedMedicineResponse;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -11,11 +12,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PrescriptionParser {
 
     private final IndianMedicineDictionary dictionary;
+    private final Counter ocrParsed;
+    private final Counter ocrDetected;
+
+    public PrescriptionParser(IndianMedicineDictionary dictionary, MeterRegistry registry) {
+        this.dictionary = dictionary;
+        this.ocrParsed = Counter.builder("familycare.ocr.parsed")
+                .description("Prescription OCR parse calls")
+                .register(registry);
+        this.ocrDetected = Counter.builder("familycare.ocr.medicines_detected")
+                .description("Total medicines detected across all OCR parse calls")
+                .register(registry);
+    }
 
     private static final Pattern DOSAGE_PATTERN = Pattern.compile(
             "(\\d+(?:\\.\\d+)?)\\s*(mg|mcg|ml|g|iu|%)\\b",
@@ -55,6 +67,7 @@ public class PrescriptionParser {
     }
 
     public List<DetectedMedicineResponse> parse(String rawText) {
+        ocrParsed.increment();
         if (rawText == null || rawText.isBlank()) return List.of();
 
         // Dedup by genericName, not brand. A real Indian prescription is laid
@@ -89,7 +102,9 @@ public class PrescriptionParser {
             }
         }
 
-        return new ArrayList<>(byGeneric.values());
+        List<DetectedMedicineResponse> result = new ArrayList<>(byGeneric.values());
+        ocrDetected.increment(result.size());
+        return result;
     }
 
     /**
