@@ -19,8 +19,10 @@ Her elderly mother gets WhatsApp reminders on her existing phone. **No app. No l
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/patelkarma/familycare/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/patelkarma/familycare/actions)
-[![Tests](https://img.shields.io/badge/tests-90_backend_+_24_frontend-22c55e?style=flat-square&logo=junit5&logoColor=white)](https://github.com/patelkarma/familycare/actions)
+[![Tests](https://img.shields.io/badge/tests-98_backend_+_27_frontend-22c55e?style=flat-square&logo=junit5&logoColor=white)](https://github.com/patelkarma/familycare/actions)
 [![Uptime](https://img.shields.io/badge/uptime-UptimeRobot-22c55e?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
+[![Metrics](https://img.shields.io/badge/metrics-Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white)](https://familycare.onrender.com/actuator/prometheus)
+[![Resilience](https://img.shields.io/badge/resilience-Resilience4j-2eaadc?style=flat-square)](https://resilience4j.readme.io/)
 ![Java](https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?style=flat-square&logo=spring&logoColor=white)
 ![Postgres](https://img.shields.io/badge/Postgres-Supabase-336791?style=flat-square&logo=postgresql&logoColor=white)
@@ -43,6 +45,29 @@ In India, ~138 million people are aged 60+. The people *managing* their daily he
 FamilyCare flips it: the **dashboard is for the caregiver**. The reminders go to **WhatsApp** on the parent's basic phone. Reply *"ok"*, *"haan"*, or *"✅"* and the dose is marked taken. Zero install on the device that matters most.
 
 > ⚡ **No cold-start wait.** Render's free tier sleeps after 15 min idle. UptimeRobot pings `/api/health` every 5 min so the dyno stays warm — the live demo opens instantly. Reasoning in [ADR-003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts).
+
+---
+
+## 🚀 See it in 60 seconds
+
+```text
+1. Open https://familycare-gamma.vercel.app and click "Try the demo"
+   (or register your own account — under 30s, no email verification)
+2. The dashboard lands on a pre-seeded family with 3 members, 8 medicines,
+   and 14 days of vitals so the AI cards (alerts, dose progress, vitals
+   tile) are populated immediately
+3. Click any member → see their medicines, today's dose timeline, vitals
+   chart with the threshold line, and emergency contacts
+4. Click "Scan prescription" → upload a real Indian prescription photo →
+   watch Tesseract.js + the dictionary fill out 3-4 medicine rows with
+   confidence badges. Confirm to add them.
+5. Switch the language picker to हिन्दी / ગુજરાતી / தமிழ் — sidebar,
+   alerts, dose counts (with correct plurals), and dates all flip
+6. Trigger SOS for any member → WhatsApp lands with patient info,
+   medication list, and a clickable Google Maps link
+```
+
+> 💡 **Want to see the WhatsApp side?** Connect the Twilio sandbox by sending `join degree-idea` to `+1 415 523 8886`. Then add your number to a member's phone field — the next reminder lands on your real WhatsApp. Reply `ok`, `लिया`, `kha liya`, or `✅` and the dose flips to TAKEN.
 
 ---
 
@@ -123,6 +148,36 @@ The first attempt at i18n had nav labels and tiles in Hindi but alert banners st
 
 Frontend renders via `t('dashboard.alerts.missedDose', { count: 3 })`, with i18next plural forms (`missedDose_one` / `missedDose_other`) so Hindi reads `आज 3 खुराक छूट गईं` (correct plural) instead of `3 खुराक छूट गई`. Appointment timestamps are passed as ISO strings and formatted client-side so `4 May, 9:00 PM` becomes `4 मई, 9:00 PM` automatically. Drift CI guarantees every locale has every key.
 
+### 🪪 Multi-tenant family auth with Self-member identity mirroring
+
+A family head is *also* a patient — they take their own medicines, log their own vitals, need their own SOS button. But they are *also* the account owner. Two parallel identities (`User` + `FamilyMember`) for the same human is a footgun: rename your account and your dashboard greeting still says the old name.
+
+The solution is a Self `FamilyMember` row auto-created at registration time, linked to the `User` via `linkedUserId`, with **identity fields mirrored bidirectionally on every update path**: edit name on the profile page → push to the linked Self member; edit name on the Family page when it's the Self member → push back to the User and refetch `/auth/me` so the sidebar greeting updates immediately. The first version mirrored phone + WhatsApp but not name — caught by a recruiter-style demo screenshot when the family card flipped but the dashboard greeting didn't. [ADR-009](docs/DECISIONS.md#adr-009-self-member-identity-mirroring-one-user-two-identities) walks through the design and the bug.
+
+Also: each managed `FamilyMember` can optionally have its own patient login (separate JWT, scoped to their data only). The patient sees a stripped-down view of *just their* medicines + vitals; the family head still manages everything from the dashboard. The relationship is exposed in the UI as an *Unlink* action on each member card.
+
+### 🩹 Graceful degradation when Twilio + Gemini misbehave
+
+Two outbound dependencies, two different failure modes. Twilio sandbox throttles unpredictably; Gemini free tier quota-exhausts mid-conversation. Without protection, every reminder cycle re-hits the dead provider and the user sees a 30-second hang. Wrapped both with **Resilience4j** `@CircuitBreaker` + `@Retry`:
+
+- 50% failure rate over the last 10 calls trips the breaker OPEN for 30s (Twilio) / 60s (Gemini)
+- One probe call in HALF_OPEN re-closes if the provider recovered, otherwise opens for another window
+- WhatsApp falls back to `return false` so reminders log as `FAILED` instead of throwing — the rest of the cron loop keeps running
+- Gemini falls back to *"AI assistant is temporarily unavailable. Please try again in a minute."* — the chat UI renders that as a normal assistant turn instead of a stack trace
+- `BadRequestException` (auth/quota/404) is excluded from retries — that's a config error, not a blip; retrying just doubles the angry log entry
+
+**Subtle gotcha:** the first attempt put `@CircuitBreaker` on `GeminiClient.invoke()` (private). Spring AOP only intercepts external proxy calls, so the self-invocation from `chat()` to `invoke()` would have bypassed the breaker entirely. Caught against the docs; moved the annotations to `chat()` and `chatWithImage()`. Documented in [ADR-006](docs/DECISIONS.md#adr-006-resilience4j-circuit-breaker-around-twilio--gemini).
+
+### 🚦 Brute-force defense without inconveniencing real users
+
+`/auth/login` is a brute-force target, `/auth/register` is a bot-signup target, and `/sos/trigger` fans out WhatsApp to up to 10 emergency contacts per call — a stolen JWT plus zero rate limit means an abuser can blast every contact in a family until Twilio cuts us off. Wired **Bucket4j** token-bucket limits via a `HandlerInterceptor` that runs after `JwtFilter`:
+
+- **5 logins/min/IP** (legitimate "did I capslock?" stays under, brute force gets blocked)
+- **3 registrations/hour/IP** (real users register once, ever)
+- **5 SOS triggers/min/user** — keyed by authenticated email so a compromised account is one user, not one IP. Defense in depth on top of the existing 60s server-side cooldown.
+
+429 responses ship a spec-compliant `Retry-After` header computed from the bucket's `nanosToWaitForRefill`. Each rejection increments `familycare_ratelimit_rejected_total{rule}` so Grafana sees brute-force vs bot-signup vs SOS abuse as independent series. In-memory now (single dyno); the `RateLimitRule` enum is the seam for swapping to `bucket4j-redis` when we go multi-dyno. Documented in [ADR-007](docs/DECISIONS.md#adr-007-bucket4j-rate-limiting-on-auth--sos), locked in by [`RateLimitServiceTest`](backend/src/test/java/com/familycare/security/ratelimit/RateLimitServiceTest.java) and the actuator integration test.
+
 ### 🛡 Defensive Unicode in production paths
 
 Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs immediate help` with literal asterisks. Cause: a `U+00A0` (non-breaking space) in the stored member name. Java's `String.trim()` and `String.strip()` both ignore the no-break space family. The same character had earlier broken `WHERE name = 'Meena Patel'` SQL. The fix routes all SOS-rendered text through a regex that catches `\s` *and* `\p{Z}` (Unicode SPACE_SEPARATOR), so no future stray paste from a PDF or web form silently breaks the bold formatting in an emergency alert.
@@ -136,15 +191,19 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 | [003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts) | Render free tier despite cold starts | UptimeRobot ping + warning banner beats $7/mo for a portfolio project |
 | [004](docs/DECISIONS.md#adr-004-regex-based-prescription-parser-not-an-llm) | Regex parser, not an LLM | Deterministic, free, *fails visibly*; LLM parser hallucinates with confidence |
 | [005](docs/DECISIONS.md#adr-005-whatsapp-only-reminders-no-sms-fallback-yet) | WhatsApp-only, not WhatsApp + SMS | Ship one channel that works over two half-wired ones |
+| [006](docs/DECISIONS.md#adr-006-resilience4j-circuit-breaker-around-twilio--gemini) | Resilience4j around Twilio + Gemini | Per-provider breaker; private vs public method gotcha; `BadRequestException` excluded from retries |
+| [007](docs/DECISIONS.md#adr-007-bucket4j-rate-limiting-on-auth--sos) | Bucket4j rate limiting (auth + SOS) | Interceptor (post-JWT) so `/sos/trigger` can key by user; spec-compliant `Retry-After`; in-memory until multi-dyno |
+| [008](docs/DECISIONS.md#adr-008-client-side-ocr-with-tesseractjs-not-server-side) | Tesseract.js client-side, not Tess4J server-side | Render's 512 MB RAM can't host Tess4J under burst; OCR overlaps with Cloudinary upload latency |
+| [009](docs/DECISIONS.md#adr-009-self-member-identity-mirroring-one-user-two-identities) | Self-member identity mirroring | One human, two identities (`User` + Self `FamilyMember`); bidirectional mirror on every update path |
 
 ---
 
 ## 📊 By the numbers
 
-- **114 tests** run on every push — 90 backend (JUnit 5 + Mockito + Testcontainers Postgres + Redis) + 24 frontend (Vitest + Testing Library + jsdom)
+- **125 tests** run on every push — 98 backend (94 unit + 4 integration: `AuthFlowIntegrationTest` and `ActuatorPrometheusIntegrationTest` that locks in the metrics wiring; `RateLimitServiceTest` for the token buckets) + 27 frontend (Vitest + Testing Library + jsdom; includes 3 axios interceptor tests for 429 + Retry-After handling)
 - **15 REST controllers** with `@Valid` DTOs, a single `GlobalExceptionHandler`, and JWT-protected by default
 - **9 languages × ~408 translation keys** — drift-checked in CI; alerts include i18next plural forms
-- **5 ADRs** documenting decisions worth defending in a code review
+- **9 ADRs** documenting decisions worth defending in a code review
 - **6 real production bugs** found and fixed live during development:
   - `/me` endpoint returning 500 instead of 401 ([`bd91a64`](https://github.com/patelkarma/familycare/commit/bd91a64)) — caught by the integration test before it shipped
   - Springdoc 2.6.0 `NoSuchMethodError` on Spring Boot 3.5 prod ([`72b51f6`](https://github.com/patelkarma/familycare/commit/72b51f6))
@@ -170,6 +229,9 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 | **API docs** | Springdoc OpenAPI / Swagger UI | Auto-generated, browsable, recruiter-shareable |
 | **i18n** | i18next 26 + 9 locale files + drift test in CI | Plural forms (`_one`/`_other`), interpolation, locale-aware date formatting |
 | **Validation** | Jakarta Bean Validation (`@Valid` + `@NotBlank` + custom messages) | Field-level error envelope from `GlobalExceptionHandler` |
+| **Resilience** | Resilience4j (`@CircuitBreaker` + `@Retry`) on Twilio + Gemini | Per-provider breaker; private vs public method gotcha caught in code review; locked in by `ActuatorPrometheusIntegrationTest` |
+| **Rate limiting** | Bucket4j token bucket on `/auth/login` + `/auth/register` + `/sos/trigger` | Spec-compliant `Retry-After`; per-rule Prometheus rejection counter; in-memory until multi-dyno |
+| **Observability** | Spring Boot Actuator + Micrometer + Prometheus | `/actuator/prometheus` exposes 13 FamilyCare-specific counters + breaker state gauges |
 | **Tests** | JUnit 5 + Mockito + AssertJ + **Testcontainers** for Postgres + Redis · Vitest + Testing Library | Real DB integration tests in CI; not H2 fakes |
 | **CI/CD** | GitHub Actions · Vercel auto-deploy · Render auto-deploy on `main` | Every green push lands in prod |
 | **Hosting** | Vercel (FE) · Render (BE) · Supabase (Postgres) · Upstash (Redis) · Cloudinary (files) | All free tier — zero-cost demo story |
@@ -214,7 +276,158 @@ flowchart LR
     elder -->|Inbound webhook| api
 ```
 
-The full reminder lifecycle (Redis-staged jobs → minutely cron → Twilio → inbound webhook → DB update → low-stock cascade) is documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) with the sequence diagram.
+The full reminder lifecycle (Redis-staged jobs → minutely cron → Twilio → inbound webhook → DB update → low-stock cascade) is documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Sequence diagrams for the three flows recruiters most often ask about:
+
+<details>
+<summary><b>💊 Reminder lifecycle: scheduling → WhatsApp → reply → log update</b></summary>
+
+```mermaid
+sequenceDiagram
+    participant FH as Family head
+    participant SPA as React SPA
+    participant API as Spring Boot
+    participant DB as PostgreSQL
+    participant R as Redis
+    participant SCH as @Scheduled (every minute)
+    participant CB as Resilience4j<br/>(twilio breaker)
+    participant TW as Twilio
+    participant E as Elderly relative
+
+    FH->>SPA: Add medicine + timing (9 AM, 1 PM, 9 PM)
+    SPA->>API: POST /api/medicines
+    API->>DB: INSERT medicine
+    API->>R: Stage reminder jobs<br/>reminder:{memberId}:{medId}:{timing}
+    Note over SCH: Every minute
+    SCH->>R: Pop due jobs by HH:mm
+    SCH->>DB: Lookup phone + medicine
+    SCH->>CB: sendWhatsApp(phone, message)
+    alt Breaker CLOSED
+        CB->>TW: POST /Messages
+        TW-->>CB: SID
+        CB-->>SCH: true
+    else Breaker OPEN (5/10 calls failed)
+        CB-->>SCH: false (fallback, no Twilio call)
+        Note over CB: familycare_whatsapp_circuit_fallback_total++
+    end
+    SCH->>DB: INSERT MedicineLog (status=PENDING)
+    SCH->>DB: INSERT ReminderLog (channel=WHATSAPP, status=SENT/FAILED)
+    Note over SCH: familycare_reminders_sent_total++
+
+    TW->>E: 💊 "Time for Crocin 500mg"
+    E->>TW: "ok" (or "लिया" / "kha liya" / "✅")
+    TW->>API: POST /api/webhooks/whatsapp/inbound
+    API->>API: Verify X-Twilio-Signature
+    API->>R: Idempotency claim by MessageSID
+    API->>API: WhatsAppIntentParser.parse → TAKEN
+    Note over API: familycare_whatsapp_inbound_total{intent="taken"}++
+    API->>DB: UPDATE MedicineLog SET status=TAKEN
+    API->>DB: UPDATE Medicine SET stock_count -= 1
+    alt stock_count <= low_stock_alert
+        API->>CB: sendWhatsApp(familyHead, "low stock for Crocin")
+    end
+    API->>TW: Reply "✅ Marked Crocin as taken"
+```
+
+</details>
+
+<details>
+<summary><b>🚨 SOS flow: button → 4-table aggregation → parallel fan-out</b></summary>
+
+```mermaid
+sequenceDiagram
+    participant U as User (caregiver)
+    participant SPA as React SPA
+    participant API as SosController
+    participant SVC as SosService
+    participant DB as PostgreSQL
+    participant FAN as sosFanOutExecutor<br/>(bounded thread pool)
+    participant CB as twilio breaker
+    participant TW as Twilio
+    participant C as Emergency contacts
+
+    U->>SPA: Tap SOS → confirm
+    SPA->>SPA: navigator.geolocation.getCurrentPosition
+    SPA->>API: POST /api/sos/trigger { memberId, lat, lng }
+    API->>SVC: trigger(req, userEmail)
+    SVC->>DB: 60s cooldown check on last sos_event
+    alt Cooldown active
+        SVC-->>API: 400 "wait Ns"
+        Note over SVC: familycare_sos_blocked_cooldown_total++
+    else
+        SVC->>DB: Load contacts + medicines + pinned reports
+        SVC->>SVC: SosMessageBuilder.buildWhatsApp<br/>(NBSP-safe regex on member.name)
+        loop For each contact (parallel)
+            SVC->>FAN: CompletableFuture.runAsync
+            FAN->>CB: sendWhatsApp(contact.phone, body)
+            CB->>TW: POST /Messages
+            TW-->>CB: SID
+        end
+        SVC->>SVC: allOf(...).get(12s) — bounded wall-clock
+        SVC->>DB: INSERT sos_event (deliverySummary as JSON)
+        Note over SVC: familycare_sos_triggered_total++
+        SVC-->>SPA: { eventId, contactsNotified, deliveryByContact }
+        TW->>C: WhatsApp w/ patient info, meds, Maps URL
+    end
+```
+
+</details>
+
+<details>
+<summary><b>📈 Vitals trend alert: 3-strike pattern detection + auto-escalation</b></summary>
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant API as VitalsController
+    participant SVC as VitalsService
+    participant DB as PostgreSQL
+    participant ALERT as AlertService
+    participant CB as twilio breaker
+    participant FH as Family head
+
+    U->>API: POST /api/vitals { type=BP, primary=148, secondary=92 }
+    API->>SVC: log(req)
+    SVC->>DB: INSERT vital
+    SVC->>DB: SELECT last 3 BP for member ORDER BY recorded_at DESC
+    alt All 3 ≥ 140 systolic OR ≥ 90 diastolic
+        SVC->>ALERT: pattern detected → escalate
+        ALERT->>CB: sendWhatsApp(family head phone, alert body)
+        CB->>FH: 🚨 "3 consecutive high BP readings — 148/92, 145/90, 142/91"
+        ALERT->>DB: INSERT reminder_log (channel=WHATSAPP, status=ESCALATED)
+    end
+    SVC-->>API: saved + trendAlert(banner data)
+    API-->>U: 200 + red banner renders client-side
+```
+
+</details>
+
+---
+
+## 📈 Observability
+
+If a Twilio outage took out the reminder pipeline, I'd know within minutes — `/actuator/prometheus` exposes FamilyCare-specific counters next to the JVM/HTTP defaults. A scraper (Grafana Cloud free tier works) graphs them directly.
+
+| Metric | What it tells you |
+|---|---|
+| `familycare_reminders_sent_total` | Medicine reminders successfully delivered to Twilio. Sudden flatline at 9:00 AM = the cron loop is broken. |
+| `familycare_reminders_failed_total` | WhatsApp send returned `false`. Sustained > 0 with `circuit_fallback` = 0 means Twilio itself is rejecting messages. |
+| `familycare_reminders_escalated_total` | 30-min watchdog flipped a dose to MISSED and pinged the family head. Spike = a member stopped responding. |
+| `familycare_sos_triggered_total` | One-tap emergency events that fanned out alerts. Rare event — one per incident, not per minute. |
+| `familycare_sos_blocked_cooldown_total` | SOS attempts inside the 60s cooldown window. Spike = a panicked user pressing repeatedly; alert if > 3/min for the same member. |
+| `familycare_whatsapp_inbound_total{intent}` | Tagged by `taken` / `skip` / `stock` / `sos` / `help` / `unknown`. `unknown` spike = the NLU regressed and elderly users are getting "Sorry, what?" replies. |
+| `familycare_whatsapp_circuit_fallback_total` | Distinguishes "Twilio is dead, breaker tripped" from "Twilio is alive, message rejected." Critical for postmortems — you don't want to debug a working integration. |
+| `familycare_ocr_parsed_total` | Prescription scans submitted. |
+| `familycare_ocr_medicines_detected_total` | Sum of medicines detected across all scans. Detected/parsed ratio = "are recruiters' test prescriptions actually in the dictionary?" |
+| `familycare_ratelimit_rejected_total{rule}` | One series per rule (`auth.login` / `auth.register` / `sos.trigger`). Spike on `auth.login` = brute force; on `sos.trigger` = compromised account. |
+| `resilience4j_circuitbreaker_state{name="twilio\|gemini"}` | Gauge: 0=CLOSED, 1=OPEN, 2=HALF_OPEN. Default Grafana board lights up when Twilio sandbox throttles. |
+| `http_server_requests_seconds` (default) | p50/p95/p99 latency per endpoint — sourced from Spring Boot, no extra wiring. |
+| `jvm_memory_used_bytes` (default) | Heap pressure on the Render free tier (512 MB cap). |
+
+Wired in `WhatsAppService`, `SosService`, `ReminderScheduler`, `WhatsAppBotService`, `PrescriptionParser`, and `RateLimitService` constructors via `MeterRegistry`. Locked in by [`ActuatorPrometheusIntegrationTest`](backend/src/test/java/com/familycare/ActuatorPrometheusIntegrationTest.java) so a recruiter cloning the repo can prove the wiring is real, not aspirational — the test asserts every counter name appears in the scrape body.
+
+### Liveness — UptimeRobot
+
+External synthetic monitor pings `/actuator/health` every 5 minutes. Two jobs: detect outages before users do (email lands in inbox the second the endpoint flips to DOWN), and keep the Render free tier dyno warm so the live demo opens instantly. The endpoint is curated so Redis / Twilio failures degrade specific health groups instead of dragging overall status to DOWN.
 
 ---
 
@@ -249,10 +462,12 @@ Boots on `http://localhost:5173`.
 # Backend unit tests (90 tests, no Docker needed)
 cd backend && ./mvnw test
 
-# Backend integration tests (real Postgres + Redis via Testcontainers; needs Docker)
+# Backend integration tests (Postgres + Redis via Testcontainers + the
+# ActuatorPrometheusIntegrationTest that asserts every metric is exported;
+# needs Docker)
 cd backend && ./mvnw verify -Pintegration
 
-# Frontend (24 Vitest tests including i18n drift check)
+# Frontend (27 Vitest tests — i18n drift check + axios 429 interceptor)
 cd frontend && npm test
 ```
 
@@ -260,14 +475,86 @@ cd frontend && npm test
 
 ---
 
-## 🗺 What I'd ship next
+## 🗂 Project layout
 
-- **Fast2SMS fallback** for users on feature phones without WhatsApp ([ADR-005](docs/DECISIONS.md#adr-005-whatsapp-only-reminders-no-sms-fallback-yet))
-- **Move the prescription parser to Gemini Vision** once usage justifies the cost — regex covers ~70% of clean inputs but misses handwritten scripts
-- **Sentry on both ends** — errors currently disappear into Render logs
-- **Lighthouse CI gate** so the frontend bundle (~1.6 MB) doesn't keep growing
-- **PWA + offline cache** for the dose schedule so reminders work even with patchy 3G
-- **Push notifications via FCM** as a complement to WhatsApp for users who *do* install
+```
+familycare/
+├── backend/                                 ← Spring Boot 3.5
+│   └── src/main/java/com/familycare/
+│       ├── config/        Security + CORS + Cloudinary + Redis + OpenAPI +
+│       │                  WhatsApp bot async pool + SOS fan-out pool
+│       ├── controller/    15 REST controllers — Auth / Family / Medicines /
+│       │                  Vitals / Reports / SOS / Dashboard / Webhooks / AI
+│       ├── service/
+│       │   ├── ai/                Gemini chat + pill identifier
+│       │   │                      (@CircuitBreaker + @Retry on entry points)
+│       │   ├── interactions/      RxNav + OpenFDA drug interaction lookup
+│       │   ├── whatsapp/          Bot pipeline — IntentParser, SenderResolver,
+│       │   │                      IdempotencyService, intent handlers (TAKEN /
+│       │   │                      SKIP / STOCK / SOS / HELP / VITALS),
+│       │   │                      TwilioSignatureValidator
+│       │   ├── ReminderService    Redis-staged delay queue
+│       │   ├── SosMessageBuilder  NBSP-safe regex; WhatsApp + SMS bodies
+│       │   ├── PrescriptionParser Dictionary lookup w/ dedup-by-generic +
+│       │   │                      prescription-signal gate
+│       │   └── WhatsAppService    Twilio outbound (@CircuitBreaker)
+│       ├── scheduler/     ReminderScheduler (minutely cron) +
+│       │                  AppointmentReminderScheduler
+│       ├── repository/    Spring Data JPA repos (custom @Query for last-N
+│       │                  vitals lookups)
+│       ├── model/         JPA entities — User / FamilyMember / Medicine /
+│       │                  MedicineLog / Vitals / EmergencyContact / SosEvent
+│       ├── dto/request +  Validated request DTOs + structured response
+│       │   dto/response   (DashboardAlert ships messageKey + params for i18n)
+│       ├── security/
+│       │   ├── JwtUtil, JwtFilter, UserDetailsServiceImpl
+│       │   └── ratelimit/         Bucket4j RateLimitRule + Service +
+│       │                          Interceptor (post-JWT for user-keyed limits)
+│       └── exception/     GlobalExceptionHandler — uniform JSON error envelope
+│                          (incl. 429 with Retry-After for rate-limited routes)
+│   └── src/main/resources/
+│       └── application.properties  Resilience4j + actuator config
+│   └── src/test/...       91 tests (90 unit + 1 actuator integration);
+│                          Testcontainers Postgres + Redis
+│
+├── frontend/                                ← React 19 + Vite
+│   └── src/
+│       ├── pages/         Landing / Auth / Dashboard / Family / Medicines /
+│       │                  Vitals / Reports / SosSetup / AskAI / Settings
+│       ├── components/
+│       │   ├── dashboard/    AlertBanner (i18n plural), TodayDoseGrid,
+│       │   │                 FamilySummaryCard, vitals tile
+│       │   ├── medicines/    PrescriptionScanner (Tesseract.js), MedicineCard
+│       │   │                 with 3-button row (Taken / Skip / Resend)
+│       │   ├── vitals/       VitalsChart (Recharts) + computeTrendAlert
+│       │   ├── sos/          SOSButton + emergency contact cards
+│       │   └── shared/       AvatarUploader, LanguagePicker, FamilyMemberForm
+│       ├── api/           Axios instance with JWT interceptor + per-feature
+│       │                  API modules
+│       ├── hooks/         useAuth, useFamilyMembers, useReminders
+│       └── i18n/          9 locale files (en/hi/gu/mr/bn/ta/te/kn/pa) +
+│                          drift test in Vitest
+│
+└── docs/
+    ├── ARCHITECTURE.md    System diagram + reminder lifecycle
+    ├── DECISIONS.md       6 ADRs (monolith, JWT, Render, regex parser,
+    │                      WhatsApp-only, Resilience4j)
+    └── screenshots/       7 hero + feature shots used in this README
+```
+
+---
+
+## 🗺 Roadmap
+
+What's shipped and what's next.
+
+- **Phase 1 — Foundation** ✅ JWT auth + multi-tenant family auth + Self-member identity mirroring + JPA schema + Render/Vercel/Supabase wiring
+- **Phase 2 — Reminders + Vitals** ✅ Redis-staged delay queue + minutely `@Scheduled` cron + Twilio outbound + 3-strike vitals trend detector + auto-escalation
+- **Phase 3 — Inbound NLU** ✅ WhatsApp signature verification + idempotency + intent parser (English casual / Hinglish / Devanagari / emoji, 75 parameterized tests) + per-intent handlers
+- **Phase 4 — Unique features** ✅ Tesseract.js OCR + curated 100+ entry Indian medicine dictionary + dedup-by-generic + prescription-signal gate; 4-table SOS aggregation; medical report locker
+- **Phase 5 — Hardening** ✅ Resilience4j circuit breaker on Twilio + Gemini · Bucket4j rate limiting on auth + SOS · Prometheus metrics + ActuatorPrometheusIntegrationTest · 9 ADRs · structured i18n alerts (messageKey + params, 9 languages with plural forms) · Unicode-defensive SOS rendering
+- **Phase 6 — Polish** ✅ 7-shot README screenshot grid · sequence diagrams for the 3 most-asked flows · "See it in 60 seconds" walkthrough · 6 production bug fixes documented with commit links
+- **Phase 7 — Roadmap** Fast2SMS fallback channel · Sentry on FE+BE · k6 load tests with documented p95 numbers · PWA + offline cache · push notifications via FCM · Caffeine-backed rate-limit eviction once a real abuser shows up
 
 ---
 
@@ -288,6 +575,19 @@ cd frontend && npm test
 - Render's free tier sleeping after 15 min idle isn't a bug to hide — it's a constraint to mitigate. UptimeRobot for $0 is a better answer than $7/mo until a real user complains.
 - Every interesting decision deserves an ADR. *Why we didn't pick microservices* is more useful in code review than the architecture itself.
 
+### On building for failure
+- Two outbound dependencies, two different failure modes — Twilio throttles, Gemini quota-exhausts. Wrapping both with a circuit breaker is the difference between "intermittent reminder skip" and "the entire reminder loop ate latency for 20 minutes."
+- Spring AOP only intercepts proxy calls. `@CircuitBreaker` on a private method silently does nothing. Every annotation that depends on a proxy needs a public entry point — caught against the docs, not by tests.
+- Metrics that exist on a wiki are not metrics. Lock the wiring in with an integration test that asserts every counter name appears in the `/actuator/prometheus` body so a refactor that drops one fails before merge.
+
+---
+
+## 👋 Author
+
+**Karma Patel** · 3rd year, Cloud & Application Development · [github.com/patelkarma](https://github.com/patelkarma)
+
+If you read this far and you're hiring junior backend / full-stack engineers in India — [say hi](https://github.com/patelkarma).
+
 ---
 
 ## 📄 License
@@ -296,6 +596,4 @@ Educational / portfolio project, built solo. Not licensed for redistribution.
 
 <div align="center">
 <sub>Built with care for Indian families. ❤️</sub>
-<br/>
-<sub>If you read this far and you're hiring for backend / full-stack roles in India — <a href="https://github.com/patelkarma">say hi</a>.</sub>
 </div>
