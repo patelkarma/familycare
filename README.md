@@ -19,7 +19,8 @@ Her elderly mother gets WhatsApp reminders on her existing phone. **No app. No l
 <br/>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/patelkarma/familycare/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/patelkarma/familycare/actions)
-[![Tests](https://img.shields.io/badge/tests-98_backend_+_27_frontend-22c55e?style=flat-square&logo=junit5&logoColor=white)](https://github.com/patelkarma/familycare/actions)
+[![Tests](https://img.shields.io/badge/tests-101_backend_+_27_frontend-22c55e?style=flat-square&logo=junit5&logoColor=white)](https://github.com/patelkarma/familycare/actions)
+[![Deploy](https://img.shields.io/badge/deploy-test--gated_webhook-22c55e?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/patelkarma/familycare/blob/main/.github/workflows/ci.yml)
 [![Uptime](https://img.shields.io/badge/uptime-UptimeRobot-22c55e?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
 [![Metrics](https://img.shields.io/badge/metrics-Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white)](https://familycare.onrender.com/actuator/prometheus)
 [![Resilience](https://img.shields.io/badge/resilience-Resilience4j-2eaadc?style=flat-square)](https://resilience4j.readme.io/)
@@ -178,6 +179,20 @@ Two outbound dependencies, two different failure modes. Twilio sandbox throttles
 
 429 responses ship a spec-compliant `Retry-After` header computed from the bucket's `nanosToWaitForRefill`. Each rejection increments `familycare_ratelimit_rejected_total{rule}` so Grafana sees brute-force vs bot-signup vs SOS abuse as independent series. In-memory now (single dyno); the `RateLimitRule` enum is the seam for swapping to `bucket4j-redis` when we go multi-dyno. Documented in [ADR-007](docs/DECISIONS.md#adr-007-bucket4j-rate-limiting-on-auth--sos), locked in by [`RateLimitServiceTest`](backend/src/test/java/com/familycare/security/ratelimit/RateLimitServiceTest.java) and the actuator integration test.
 
+### 🚥 Test-gated CI/CD that won't ship a red commit to production
+
+The gap between "I added GitHub Actions" and "broken tests can't reach production" is a `needs:` dependency and one platform toggle. Wired both:
+
+- **On push to main**, two test jobs fan out in parallel: backend (97 unit + 4 Testcontainers integration) and frontend (27 Vitest, including i18n drift + 429 handling).
+- **Both green → a third `deploy` job runs.** It `curl`s Render's deploy hook, then Vercel's. Hook URLs live in repo secrets and the steps are skipped silently if a hook is absent, so a fork without secrets still passes CI.
+- **Either red → `deploy` job skipped via `needs: [backend, frontend]`.** Live site stays on the last known good build. No human in the loop.
+- **Auto-deploy disabled on both platforms.** Render's auto-deploy → No. Vercel's "Ignored Build Step" → `exit 1` (blocks GitHub-triggered builds; deploy hooks bypass it). The CI workflow is now the *only* path from `git push` to live.
+- **Manual escape hatch preserved.** Render's "Manual Deploy" button still works — for the day CI breaks and a customer-facing hotfix can't wait.
+
+**Subtle gotcha:** GitHub Actions rejects `secrets.*` references inside step-level `if:` expressions — the parser whitelists `github.*`, `env.*`, `steps.*`, `runner.*`, `inputs.*`, `needs.*`, `vars.*`, but not `secrets`. The fix is to hoist the hook URLs into a job-level `env:` block then guard on `env.X != ''`. Caught when the workflow failed validation with `Unrecognized named-value: 'secrets'`.
+
+Net effect: pushing broken tests at 1 AM doesn't take the live site down. The green ✅ on every commit is verifiable, not decorative.
+
 ### 🛡 Defensive Unicode in production paths
 
 Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs immediate help` with literal asterisks. Cause: a `U+00A0` (non-breaking space) in the stored member name. Java's `String.trim()` and `String.strip()` both ignore the no-break space family. The same character had earlier broken `WHERE name = 'Meena Patel'` SQL. The fix routes all SOS-rendered text through a regex that catches `\s` *and* `\p{Z}` (Unicode SPACE_SEPARATOR), so no future stray paste from a PDF or web form silently breaks the bold formatting in an emergency alert.
@@ -200,7 +215,7 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 
 ## 📊 By the numbers
 
-- **125 tests** run on every push — 98 backend (94 unit + 4 integration: `AuthFlowIntegrationTest` and `ActuatorPrometheusIntegrationTest` that locks in the metrics wiring; `RateLimitServiceTest` for the token buckets) + 27 frontend (Vitest + Testing Library + jsdom; includes 3 axios interceptor tests for 429 + Retry-After handling)
+- **128 tests** run on every push — 101 backend (97 unit + 4 integration: `AuthFlowIntegrationTest` and `ActuatorPrometheusIntegrationTest` that locks in the metrics wiring; `RateLimitServiceTest` for the token buckets; `TakenIntentHandlerTest` that locks in same-slot batch marking so one "ok" reply confirms every morning medicine, not just one) + 27 frontend (Vitest + Testing Library + jsdom; includes 3 axios interceptor tests for 429 + Retry-After handling)
 - **15 REST controllers** with `@Valid` DTOs, a single `GlobalExceptionHandler`, and JWT-protected by default
 - **9 languages × ~408 translation keys** — drift-checked in CI; alerts include i18next plural forms
 - **9 ADRs** documenting decisions worth defending in a code review
@@ -233,7 +248,7 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 | **Rate limiting** | Bucket4j token bucket on `/auth/login` + `/auth/register` + `/sos/trigger` | Spec-compliant `Retry-After`; per-rule Prometheus rejection counter; in-memory until multi-dyno |
 | **Observability** | Spring Boot Actuator + Micrometer + Prometheus | `/actuator/prometheus` exposes 13 FamilyCare-specific counters + breaker state gauges |
 | **Tests** | JUnit 5 + Mockito + AssertJ + **Testcontainers** for Postgres + Redis · Vitest + Testing Library | Real DB integration tests in CI; not H2 fakes |
-| **CI/CD** | GitHub Actions · Vercel auto-deploy · Render auto-deploy on `main` | Every green push lands in prod |
+| **CI/CD** | GitHub Actions · webhook-gated deploys to Render + Vercel | Tests pass → CI calls deploy hooks. Tests fail → live site stays on the last good build. Auto-deploy disabled on both platforms; CI is the only path to prod. |
 | **Hosting** | Vercel (FE) · Render (BE) · Supabase (Postgres) · Upstash (Redis) · Cloudinary (files) | All free tier — zero-cost demo story |
 | **Uptime** | UptimeRobot pinging `/api/health` every 5 min | Keeps the Render free tier warm; first-request latency stays low |
 
@@ -373,6 +388,29 @@ sequenceDiagram
 </details>
 
 <details>
+<summary><b>🚥 CI/CD pipeline: push → tests → gated deploy</b></summary>
+
+```mermaid
+flowchart TB
+    push["git push origin main"]
+    push --> ci["GitHub Actions"]
+    ci --> backend["Backend job<br/>97 unit + 4 Testcontainers integration"]
+    ci --> frontend["Frontend job<br/>27 Vitest tests"]
+    backend --> gate{"needs:<br/>[backend, frontend]"}
+    frontend --> gate
+    gate -- "❌ red" --> skip["deploy job skipped<br/>live site frozen"]
+    gate -- "✅ green" --> deploy["deploy job<br/>(only on push to main)"]
+    deploy -- "curl POST" --> hook1["RENDER_DEPLOY_HOOK<br/>secret"]
+    deploy -- "curl POST" --> hook2["VERCEL_DEPLOY_HOOK<br/>secret"]
+    hook1 --> rback["Render rebuilds Spring Boot<br/>~3 min, live"]
+    hook2 --> vfront["Vercel rebuilds React<br/>~1 min, live"]
+```
+
+Auto-deploy is off on both platforms (Render: Auto-Deploy=No; Vercel: Ignored Build Step=`exit 1`). Hook calls bypass Vercel's `exit 1` block, so CI-triggered deploys still build. Manual deploy buttons preserved as the emergency escape hatch.
+
+</details>
+
+<details>
 <summary><b>📈 Vitals trend alert: 3-strike pattern detection + auto-escalation</b></summary>
 
 ```mermaid
@@ -479,7 +517,7 @@ cd frontend && npm test
 
 What's shipped vs. what's queued. Granular history is in [CHANGELOG.md](docs/CHANGELOG.md) (eventually) and the commit log.
 
-- **Done** — JWT + multi-tenant family auth · Self-member identity mirroring · Redis-staged reminder cron · Twilio outbound + inbound NLU (English / Hinglish / Devanagari / emoji) · 3-strike vitals trend detector · Tesseract.js OCR · 4-table SOS aggregation · Resilience4j circuit breakers · Bucket4j rate limiting · Prometheus metrics · 9 ADRs · 9-language i18n with plural forms
+- **Done** — JWT + multi-tenant family auth · Self-member identity mirroring · Redis-staged reminder cron · Twilio outbound + inbound NLU (English / Hinglish / Devanagari / emoji, with same-slot batch confirmation) · 3-strike vitals trend detector · Tesseract.js OCR · 4-table SOS aggregation · Resilience4j circuit breakers · Bucket4j rate limiting · Prometheus metrics · 9 ADRs · 9-language i18n with plural forms · test-gated CI/CD with webhook deploys to Render + Vercel
 - **Queued** — Fast2SMS fallback for non-WhatsApp users · Sentry on FE+BE · k6 load tests with documented p95 numbers · PWA + offline cache · Caffeine-backed rate-limit eviction when a real abuser shows up
 
 ---
@@ -494,6 +532,7 @@ A handful of things from this project that changed how I write code:
 - **Spring AOP only intercepts proxy calls.** `@CircuitBreaker` on a private method silently does nothing — the self-invocation bypasses the proxy. Caught against the docs, not by tests. Every proxy-dependent annotation needs a public entry point.
 - **Metrics that live on a wiki are not metrics.** An integration test that asserts every counter name appears in `/actuator/prometheus` is the difference between "we have observability" and "we *had* observability before that refactor."
 - **A regex parser that handles 70% reliably and fails visibly beats an LLM parser that hallucinates the 30%.** Document the seam so swapping is one class change when the cost equation flips.
+- **"Auto-deploy on push" is not CD — it's a foot-gun with a green badge.** Real CD is *test-gated* deploy. The day you push at 1 AM with broken tests, the difference between "Render deploys it anyway" and "deploy job skipped via `needs:`" is whether your live site goes down or stays up.
 
 ---
 
