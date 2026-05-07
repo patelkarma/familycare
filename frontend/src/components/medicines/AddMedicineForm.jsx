@@ -33,6 +33,19 @@ const forms = [
 
 const frequencies = ['Once daily', 'Twice daily', 'Three times daily', 'As needed', 'Weekly'];
 
+const daysOfWeek = [
+  { value: 'MONDAY', short: 'Mon' },
+  { value: 'TUESDAY', short: 'Tue' },
+  { value: 'WEDNESDAY', short: 'Wed' },
+  { value: 'THURSDAY', short: 'Thu' },
+  { value: 'FRIDAY', short: 'Fri' },
+  { value: 'SATURDAY', short: 'Sat' },
+  { value: 'SUNDAY', short: 'Sun' },
+];
+
+const todayDayName = () =>
+  ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date().getDay()];
+
 const steps = [
   { label: 'Medicine', icon: Pill },
   { label: 'Schedule', icon: Clock },
@@ -67,6 +80,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
           dosage: medicine.dosage,
           form: medicine.form || '',
           frequency: medicine.frequency,
+          weeklyDay: medicine.weeklyDay || '',
           morning: medicine.timing?.morning || '',
           afternoon: medicine.timing?.afternoon || '',
           night: medicine.timing?.night || '',
@@ -83,6 +97,9 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
 
   const selectedForm = watch('form');
   const watchedName = watch('name');
+  const watchedFrequency = watch('frequency');
+  const watchedWeeklyDay = watch('weeklyDay');
+  const isWeekly = watchedFrequency === 'Weekly';
 
   const mutation = useMutation({
     mutationFn: (data) => {
@@ -93,6 +110,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
         dosage: data.dosage,
         form: data.form || null,
         frequency: data.frequency,
+        weeklyDay: data.frequency === 'Weekly' ? (data.weeklyDay || todayDayName()) : null,
         timing: {},
         withFood: data.withFood || false,
         startDate: data.startDate || null,
@@ -290,6 +308,48 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                     </select>
                     {errors.frequency && <p className="text-red-500 text-xs mt-1">{t(errors.frequency.message, errors.frequency.message)}</p>}
                   </div>
+
+                  <AnimatePresence initial={false}>
+                    {isWeekly && (
+                      <motion.div
+                        key="weekly-day-picker"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Which day of the week?
+                        </label>
+                        <input type="hidden" {...register('weeklyDay')} />
+                        <div className="flex flex-wrap gap-2">
+                          {daysOfWeek.map((d) => {
+                            const selected = (watchedWeeklyDay || todayDayName()) === d.value;
+                            return (
+                              <motion.button
+                                key={d.value}
+                                type="button"
+                                onClick={() => setValue('weeklyDay', d.value, { shouldDirty: true })}
+                                className={`px-3.5 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
+                                  selected
+                                    ? 'border-primary bg-primary text-white'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                                }`}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                {d.short}
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          The reminder will fire only on this day each week.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -23,6 +23,7 @@ public class MedicineResponse {
     private String dosage;
     private String form;
     private String frequency;
+    private String weeklyDay;
     private Map<String, String> timing;
     private Boolean withFood;
     private LocalDate startDate;

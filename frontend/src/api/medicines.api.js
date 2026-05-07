@@ -7,6 +7,7 @@ export const medicinesApi = {
   delete: (id) => api.delete(`/api/medicines/${id}`).then((res) => res.data),
   markTaken: (id, data) => api.post(`/api/medicines/${id}/mark-taken`, data).then((res) => res.data),
   markSkipped: (id, data) => api.post(`/api/medicines/${id}/mark-skipped`, data).then((res) => res.data),
+  takeAsNeeded: (id, notes = '') => api.post(`/api/medicines/${id}/take-now`, { notes }).then((res) => res.data),
   getLogs: (id) => api.get(`/api/medicines/${id}/logs`).then((res) => res.data),
   updateStock: (id, stockCount) => api.put(`/api/medicines/${id}/stock`, { stockCount }).then((res) => res.data),
   resendReminder: (id, doseTiming) => api.post(`/api/medicines/${id}/resend-reminder?doseTiming=${doseTiming}`).then((res) => res.data),

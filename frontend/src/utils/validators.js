@@ -70,12 +70,22 @@ export const emergencyContactSchema = z.object({
   isPrimary: z.boolean().optional(),
 });
 
+// How many timing slots each frequency expects. As-needed is unscheduled (button-driven).
+const expectedSlotsByFrequency = {
+  'Once daily': 1,
+  'Twice daily': 2,
+  'Three times daily': 3,
+  'Weekly': 1,
+  'As needed': 0,
+};
+
 export const medicineSchema = z.object({
   name: z.string().min(2, 'validation.medicineNameRequired'),
   genericName: z.string().optional().or(z.literal('')),
   dosage: z.string().min(1, 'validation.dosageRequired'),
   form: z.string().optional().or(z.literal('')),
   frequency: z.string().min(1, 'validation.frequencyRequired'),
+  weeklyDay: z.string().optional().or(z.literal('')),
   morning: z.string().optional().or(z.literal('')),
   afternoon: z.string().optional().or(z.literal('')),
   night: z.string().optional().or(z.literal('')),
@@ -84,4 +94,34 @@ export const medicineSchema = z.object({
   endDate: z.string().optional().or(z.literal('')),
   stockCount: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
+}).superRefine((data, ctx) => {
+  const expected = expectedSlotsByFrequency[data.frequency];
+  if (expected === undefined) return;
+  const filled = ['morning', 'afternoon', 'night'].filter((k) => data[k] && data[k].length > 0).length;
+
+  // As-needed has no schedule slots — it's tracked via the "Take a dose now" button.
+  if (expected === 0 && filled > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['frequency'],
+      message: `"${data.frequency}" doesn't use scheduled times — clear the time slots`,
+    });
+    return;
+  }
+  if (expected > 0 && filled !== expected) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['morning'],
+      message: `"${data.frequency}" needs ${expected} time slot${expected > 1 ? 's' : ''} filled (got ${filled})`,
+    });
+  }
+
+  // endDate must not precede startDate when both are set.
+  if (data.startDate && data.endDate && data.endDate < data.startDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['endDate'],
+      message: 'End date cannot be before start date',
+    });
+  }
 });

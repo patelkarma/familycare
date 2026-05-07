@@ -67,6 +67,7 @@ public class MedicineService {
                 .dosage(request.getDosage())
                 .form(request.getForm())
                 .frequency(request.getFrequency())
+                .weeklyDay(normalizeWeeklyDay(request.getFrequency(), request.getWeeklyDay()))
                 .timing(serializeTiming(request.getTiming()))
                 .withFood(request.getWithFood() != null ? request.getWithFood() : false)
                 .startDate(request.getStartDate())
@@ -99,6 +100,7 @@ public class MedicineService {
         medicine.setDosage(request.getDosage());
         medicine.setForm(request.getForm());
         medicine.setFrequency(request.getFrequency());
+        medicine.setWeeklyDay(normalizeWeeklyDay(request.getFrequency(), request.getWeeklyDay()));
         medicine.setTiming(serializeTiming(request.getTiming()));
         medicine.setWithFood(request.getWithFood() != null ? request.getWithFood() : false);
         medicine.setStartDate(request.getStartDate());
@@ -217,10 +219,58 @@ public class MedicineService {
                 User familyHead = medicine.getFamilyMember().getUser();
                 String phone = familyHead.whatsappPhoneOrFallback();
                 if (phone != null && !phone.isBlank()) {
+                    // Use the /maps/search/ URL form so the mobile Google Maps app / browser
+                    // geolocates the user and ranks pharmacies by proximity. The old ?q= form
+                    // gave the same generic results to everyone regardless of location.
                     String msg = "FamilyCare Alert: " + medicine.getName() + " for " +
                             medicine.getFamilyMember().getName() + " has only " +
                             medicine.getStockCount() + " doses left. Find pharmacy: " +
-                            "https://maps.google.com/?q=pharmacy+near+me";
+                            "https://www.google.com/maps/search/pharmacy+near+me/";
+                    whatsAppService.sendWhatsApp(phone, msg);
+                }
+            }
+        }
+
+        return toLogResponse(logEntry);
+    }
+
+    /**
+     * Log a single "as-needed" (PRN) dose. Always creates a NEW log row — As-needed meds can
+     * be taken multiple times a day, so we deliberately bypass the find-existing-log dedupe
+     * used by markTaken (which would throw NonUniqueResultException on the second dose of
+     * the day). Stock decrements and low-stock alerts work the same as a scheduled dose.
+     */
+    @Transactional
+    public MedicineLogResponse takeAsNeededDose(UUID medicineId, String notes, String userEmail) {
+        User user = getUser(userEmail);
+        Medicine medicine = resolveMedicine(medicineId, user);
+
+        LocalDateTime now = LocalDateTime.now();
+        MedicineLog logEntry = MedicineLog.builder()
+                .medicine(medicine)
+                .familyMember(medicine.getFamilyMember())
+                .scheduledTime(now)
+                .takenAt(now)
+                .status("TAKEN")
+                .doseTiming("AS_NEEDED")
+                .notes(notes)
+                .channel("APP")
+                .markedBy(user)
+                .build();
+        medicineLogRepository.save(logEntry);
+
+        if (medicine.getStockCount() != null && medicine.getStockCount() > 0) {
+            medicine.setStockCount(medicine.getStockCount() - 1);
+            medicineRepository.save(medicine);
+
+            if (medicine.getStockCount() <= medicine.getLowStockAlert()) {
+                User familyHead = medicine.getFamilyMember().getUser();
+                String phone = familyHead.whatsappPhoneOrFallback();
+                if (phone != null && !phone.isBlank()) {
+                    String msg = "FamilyCare Alert: " + medicine.getName() + " for " +
+                            medicine.getFamilyMember().getName() + " has only " +
+                            medicine.getStockCount() + " doses left. Find pharmacy: " +
+                            "https://www.google.com/maps/search/pharmacy+near+me/";
                     whatsAppService.sendWhatsApp(phone, msg);
                 }
             }
@@ -376,6 +426,21 @@ public class MedicineService {
         });
     }
 
+    /**
+     * Coerce the incoming weeklyDay into the canonical DayOfWeek.name() form ("MONDAY"...).
+     * Returns null for non-weekly frequencies so we don't store stale day data when a user
+     * switches a medicine from "Weekly" to "Once daily".
+     */
+    private String normalizeWeeklyDay(String frequency, String weeklyDay) {
+        if (frequency == null || !frequency.toLowerCase().contains("weekly")) return null;
+        if (weeklyDay == null || weeklyDay.isBlank()) return null;
+        try {
+            return java.time.DayOfWeek.valueOf(weeklyDay.trim().toUpperCase()).name();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     private String serializeTiming(Map<String, String> timing) {
         if (timing == null) return null;
         try {
@@ -409,6 +474,7 @@ public class MedicineService {
                 .dosage(medicine.getDosage())
                 .form(medicine.getForm())
                 .frequency(medicine.getFrequency())
+                .weeklyDay(medicine.getWeeklyDay())
                 .timing(deserializeTiming(medicine.getTiming()))
                 .withFood(medicine.getWithFood())
                 .startDate(medicine.getStartDate())

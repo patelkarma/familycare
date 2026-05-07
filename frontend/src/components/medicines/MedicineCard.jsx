@@ -104,8 +104,23 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
     },
   });
 
+  const [takingAsNeeded, setTakingAsNeeded] = useState(false);
+  const takeAsNeededMutation = useMutation({
+    mutationFn: () => medicinesApi.takeAsNeeded(medicine.id),
+    onSuccess: () => {
+      setTakingAsNeeded(false);
+      invalidateAll();
+      toast.success(t('status.taken'));
+    },
+    onError: (err) => {
+      setTakingAsNeeded(false);
+      toast.error(err.response?.data?.message || t('common.error'));
+    },
+  });
+
   const timing = medicine.timing || {};
   const activeTimings = Object.entries(timing).filter(([, time]) => time);
+  const isAsNeeded = medicine.frequency === 'As needed';
   const stockPercent = medicine.stockCount > 0
     ? Math.min((medicine.stockCount / Math.max(medicine.lowStockAlert * 3, 30)) * 100, 100)
     : 0;
@@ -239,6 +254,45 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* As-needed (PRN) dose tracking — shown only when frequency = "As needed".
+          PRN meds have no scheduled timing slots, so the user logs each dose manually
+          with this button. The mutation creates a fresh log each time (no per-day dedupe). */}
+      {isAsNeeded && (
+        <div className="mb-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary-light/40 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800">As-needed medicine</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Tap when you take a dose. Stock decrements automatically.
+              </p>
+            </div>
+            <motion.button
+              onClick={() => {
+                setTakingAsNeeded(true);
+                takeAsNeededMutation.mutate();
+              }}
+              disabled={takingAsNeeded || isOutOfStock}
+              className="flex items-center gap-1.5 bg-primary text-white rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md shadow-primary/20 hover:bg-primary-dark disabled:opacity-50 shrink-0"
+              whileHover={{ scale: takingAsNeeded ? 1 : 1.05 }}
+              whileTap={{ scale: takingAsNeeded ? 1 : 0.95 }}
+            >
+              {takingAsNeeded ? (
+                <motion.div
+                  className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                />
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Take a dose now
+                </>
+              )}
+            </motion.button>
+          </div>
         </div>
       )}
 

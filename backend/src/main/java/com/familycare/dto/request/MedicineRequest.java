@@ -27,6 +27,8 @@ public class MedicineRequest {
     @NotBlank(message = "Frequency is required")
     private String frequency;
 
+    private String weeklyDay;
+
     private Map<String, String> timing;
 
     private Boolean withFood;

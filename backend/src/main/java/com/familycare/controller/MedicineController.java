@@ -71,6 +71,16 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(log, "Dose marked as skipped"));
     }
 
+    @PostMapping("/{id}/take-now")
+    public ResponseEntity<ApiResponse<MedicineLogResponse>> takeAsNeededDose(
+            @PathVariable UUID id,
+            @RequestBody(required = false) MedicineLogRequest request,
+            Authentication auth) {
+        String notes = request != null ? request.getNotes() : null;
+        MedicineLogResponse log = medicineService.takeAsNeededDose(id, notes, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(log, "Dose recorded"));
+    }
+
     @GetMapping("/{id}/logs")
     public ResponseEntity<ApiResponse<List<MedicineLogResponse>>> getLogs(
             @PathVariable UUID id, Authentication auth) {

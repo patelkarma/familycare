@@ -37,6 +37,12 @@ public class Medicine {
     @Column(nullable = false)
     private String frequency;
 
+    // Day-of-week for "Weekly" meds, stored as DayOfWeek.name() ("MONDAY"..."SUNDAY").
+    // Null for non-weekly frequencies. Scheduler falls back to startDate.getDayOfWeek()
+    // when this is null, so legacy rows keep working until a user re-saves the medicine.
+    @Column(name = "weekly_day", length = 16)
+    private String weeklyDay;
+
     @Column(columnDefinition = "TEXT")
     private String timing;
 
