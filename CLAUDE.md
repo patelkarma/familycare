@@ -289,7 +289,6 @@ All endpoints require `Authorization: Bearer <jwt>` header except `/auth/**`.
 -- Auth (public)
 POST   /auth/register
 POST   /auth/login
-POST   /auth/refresh
 GET    /auth/me
 
 -- Family Members
@@ -347,7 +346,7 @@ GET    /dashboard/alerts
 ## 8. Security Rules
 
 - JWT secret is in env var `JWT_SECRET_KEY` — never hardcode it
-- JWT expiry: 24 hours (access), 7 days (refresh)
+- JWT expiry: 24 hours (single access token, no refresh flow yet)
 - Passwords: BCrypt strength 12
 - All `/api/**` routes protected except `/api/auth/**`
 - CORS allowed origins: `http://localhost:5173` (dev) and Vercel URL (prod)
