@@ -10,7 +10,7 @@ import { scheduleApi } from '../api/schedule.api';
 import MedicineCard from '../components/medicines/MedicineCard';
 import AddMedicineForm from '../components/medicines/AddMedicineForm';
 import PrescriptionScanner from '../components/medicines/PrescriptionScanner';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 import ConfirmModal from '../components/shared/ConfirmModal';
 
@@ -103,7 +103,14 @@ const Medicines = () => {
     setEditingMedicine(null);
   };
 
-  if (membersLoading) return <LoadingSpinner size="lg" />;
+  if (membersLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-56 bg-gray-100 rounded-md animate-pulse" />
+        <SkeletonList count={4} rows={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -192,7 +199,7 @@ const Medicines = () => {
       {activeMemberId && (
         <>
           {medicinesLoading ? (
-            <LoadingSpinner />
+            <SkeletonList count={4} rows={3} />
           ) : medicines.length === 0 ? (
             <EmptyState
               icon={Pill}

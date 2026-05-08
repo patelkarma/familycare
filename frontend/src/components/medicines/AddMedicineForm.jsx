@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { medicineSchema } from '../../utils/validators';
 import { medicinesApi } from '../../api/medicines.api';
 import InteractionWarning from './InteractionWarning';
+import VoiceInput from '../shared/VoiceInput';
 
 const forms = [
   { value: 'Tablet', icon: '💊', label: 'Tablet' },
@@ -225,12 +226,18 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
                 >
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">{t('medicineForm.medicineName')} *</label>
-                    <input
-                      type="text"
-                      {...register('name')}
-                      placeholder={t('medicineForm.medicineNamePlaceholder')}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        {...register('name')}
+                        placeholder={t('medicineForm.medicineNamePlaceholder')}
+                        className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                      />
+                      <VoiceInput
+                        onResult={(text) => setValue('name', text, { shouldDirty: true, shouldValidate: true })}
+                        title={t('voice.speakMedicineName', 'Speak the medicine name')}
+                      />
+                    </div>
                     {errors.name && <p className="text-red-500 text-xs mt-1">{t(errors.name.message, errors.name.message)}</p>}
                     {!isEditing && memberId && (
                       <InteractionWarning memberId={memberId} drugName={watchedName} />

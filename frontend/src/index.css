@@ -39,6 +39,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--surface-page);
   color: var(--content-primary);
+  overflow-x: hidden;
+}
+
+/* Hide horizontal scrollbar on tab/chip rails (used with `scrollbar-hide` class) */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Min-44px tap targets for icon-only action buttons on touch devices.
+   Apply via the `tap-target` class on small <button>/<a> with only an icon. */
+@media (pointer: coarse) {
+  .tap-target { min-width: 44px; min-height: 44px; }
 }
 
 /* ---------------- Dark-mode global overrides ----------------

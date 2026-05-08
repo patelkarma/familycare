@@ -8,7 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { familyApi } from '../api/family.api';
 import { formatRelationship, formatDate } from '../utils/formatters';
 import Avatar from '../components/shared/Avatar';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import FamilyMemberForm from '../components/shared/FamilyMemberForm';
@@ -104,7 +104,14 @@ const Family = () => {
     setEditingMember(null);
   };
 
-  if (isLoading) return <LoadingSpinner size="lg" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-gray-100 rounded-md animate-pulse" />
+        <SkeletonList count={4} rows={2} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

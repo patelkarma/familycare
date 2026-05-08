@@ -20,7 +20,7 @@ import { familyApi } from '../api/family.api';
 import { vitalsApi } from '../api/vitals.api';
 import VitalsChart from '../components/vitals/VitalsChart';
 import VitalsLogForm from '../components/vitals/VitalsLogForm';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonChart, SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 import ConfirmModal from '../components/shared/ConfirmModal';
 
@@ -153,7 +153,15 @@ const Vitals = () => {
     onError: () => toast.error(t('toast.somethingWrong')),
   });
 
-  if (!isPatient && membersLoading) return <LoadingSpinner size="lg" />;
+  if (!isPatient && membersLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-56 bg-gray-100 rounded-md animate-pulse" />
+        <SkeletonChart />
+        <SkeletonList count={3} rows={2} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -297,7 +305,7 @@ const Vitals = () => {
 
           {/* Chart */}
           {vitalsLoading ? (
-            <LoadingSpinner />
+            <SkeletonChart />
           ) : (
             <VitalsChart data={vitals} type={selectedType} />
           )}

@@ -19,7 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import { familyApi } from '../api/family.api';
 import { appointmentsApi } from '../api/appointments.api';
 import AppointmentForm from '../components/appointments/AppointmentForm';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 import ConfirmModal from '../components/shared/ConfirmModal';
 
@@ -80,7 +80,14 @@ const Appointments = () => {
     setShowForm(true);
   };
 
-  if (!isPatient && membersLoading) return <LoadingSpinner size="lg" />;
+  if (!isPatient && membersLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-56 bg-gray-100 rounded-md animate-pulse" />
+        <SkeletonList count={3} rows={2} />
+      </div>
+    );
+  }
 
   const formatTime = (dateStr) => {
     const d = new Date(dateStr);
@@ -191,7 +198,7 @@ const Appointments = () => {
 
       {/* Appointments list */}
       {appointmentsLoading ? (
-        <LoadingSpinner />
+        <SkeletonList count={3} rows={2} />
       ) : !activeMemberId ? (
         <EmptyState
           icon={Calendar}

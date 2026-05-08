@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { familyApi } from '../api/family.api';
 import { reportsApi } from '../api/reports.api';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 import ConfirmModal from '../components/shared/ConfirmModal';
 import EmptyReportsState from '../components/reports/EmptyReportsState';
@@ -123,7 +123,14 @@ const Reports = () => {
     onError: () => toast.error(t('toast.somethingWrong')),
   });
 
-  if (!isPatient && membersLoading) return <LoadingSpinner size="lg" />;
+  if (!isPatient && membersLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-56 bg-gray-100 rounded-md animate-pulse" />
+        <SkeletonList count={4} rows={2} />
+      </div>
+    );
+  }
 
   const latestDate = stats.latest
     ? new Date(stats.latest.createdAt).toLocaleDateString('en-IN', {
@@ -285,7 +292,7 @@ const Reports = () => {
 
           {/* Content */}
           {reportsLoading ? (
-            <LoadingSpinner />
+            <SkeletonList count={4} rows={2} />
           ) : reports.length === 0 ? (
             stats.total === 0 ? (
               <EmptyReportsState

@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { dashboardApi } from '../api/dashboard.api';
 import { formatRelationship, formatDate } from '../utils/formatters';
 import Avatar from '../components/shared/Avatar';
-import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { SkeletonStatGrid, SkeletonList } from '../components/shared/SkeletonCard';
 import EmptyState from '../components/shared/EmptyState';
 
 const container = {
@@ -74,7 +74,18 @@ const Dashboard = () => {
   const pendingCount = stats.pending;
   const activeMedicineCount = summary.activeMedicineCount || 0;
 
-  if (isLoading) return <LoadingSpinner size="lg" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <div className="h-8 w-64 bg-gray-100 rounded-md animate-pulse mb-2" />
+          <div className="h-4 w-48 bg-gray-100 rounded-md animate-pulse" />
+        </div>
+        <SkeletonStatGrid count={4} />
+        <SkeletonList count={3} rows={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
