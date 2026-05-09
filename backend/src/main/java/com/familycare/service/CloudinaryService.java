@@ -73,10 +73,21 @@ public class CloudinaryService {
     }
 
     /**
-     * Uploads a file to Cloudinary under the given folder.
-     * Validates mime type and size before upload.
+     * Uploads a file to Cloudinary under the given folder as a public asset.
+     * Used for avatars, prescription scans, and other non-sensitive uploads.
      */
     public UploadResult upload(MultipartFile file, String folder) {
+        return upload(file, folder, false);
+    }
+
+    /**
+     * Uploads a file to Cloudinary. When {@code privateAccess} is true, the
+     * asset is uploaded with {@code type=authenticated}, meaning Cloudinary
+     * will reject any URL that doesn't carry a valid signature + expiry.
+     * Use this for medical reports and anything else where the URL itself
+     * should not be a permission-bypass.
+     */
+    public UploadResult upload(MultipartFile file, String folder, boolean privateAccess) {
         validate(file);
 
         // Only true images go through Cloudinary's image pipeline (transforms,
@@ -106,12 +117,18 @@ public class CloudinaryService {
         }
 
         try {
-            Map<String, Object> options = ObjectUtils.asMap(
-                    "folder", folder,
-                    "resource_type", resourceType,
-                    "public_id", publicId,
-                    "overwrite", false
-            );
+            Map<String, Object> options = new java.util.HashMap<>();
+            options.put("folder", folder);
+            options.put("resource_type", resourceType);
+            options.put("public_id", publicId);
+            options.put("overwrite", false);
+            if (privateAccess) {
+                // Authenticated assets reject unsigned access — every download
+                // URL must carry a fresh signature + expires_at. Caller is
+                // responsible for minting those URLs via
+                // generateSignedAuthenticatedUrl() at read time.
+                options.put("type", "authenticated");
+            }
 
             @SuppressWarnings("unchecked")
             Map<String, Object> result = cloudinary.uploader().upload(file.getBytes(), options);
@@ -121,7 +138,9 @@ public class CloudinaryService {
             String format = (String) result.getOrDefault("format", "");
             Number bytesNum = (Number) result.getOrDefault("bytes", 0);
 
-            String thumbnailUrl = isImage
+            // For private uploads we don't pre-generate a thumbnail URL —
+            // it would be unsigned and useless. Caller mints one on demand.
+            String thumbnailUrl = (isImage && !privateAccess)
                     ? cloudinary.url()
                         .transformation(new com.cloudinary.Transformation<>()
                                 .width(400).height(400).crop("fill").quality("auto").fetchFormat("auto"))
@@ -129,8 +148,8 @@ public class CloudinaryService {
                         .generate(returnedPublicId)
                     : null;
 
-            log.info("Cloudinary upload success: folder={}, publicId={}, bytes={}",
-                    folder, returnedPublicId, bytesNum.longValue());
+            log.info("Cloudinary upload success: folder={}, publicId={}, bytes={}, private={}",
+                    folder, returnedPublicId, bytesNum.longValue(), privateAccess);
 
             return new UploadResult(secureUrl, returnedPublicId, thumbnailUrl,
                     bytesNum.longValue(), format, resourceType);
@@ -144,12 +163,24 @@ public class CloudinaryService {
      * Deletes a Cloudinary asset by its public ID. Safe to call for already-gone assets.
      */
     public void delete(String publicId, String resourceType) {
+        delete(publicId, resourceType, false);
+    }
+
+    /**
+     * Deletes a Cloudinary asset, specifying whether it was uploaded as
+     * authenticated. Authenticated assets need {@code type=authenticated} on
+     * the destroy call too — without it Cloudinary returns "not found".
+     */
+    public void delete(String publicId, String resourceType, boolean privateAccess) {
         if (publicId == null || publicId.isBlank()) return;
         try {
-            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap(
-                    "resource_type", resourceType == null ? "image" : resourceType,
-                    "invalidate", true
-            ));
+            Map<String, Object> options = new java.util.HashMap<>();
+            options.put("resource_type", resourceType == null ? "image" : resourceType);
+            options.put("invalidate", true);
+            if (privateAccess) {
+                options.put("type", "authenticated");
+            }
+            cloudinary.uploader().destroy(publicId, options);
             log.info("Cloudinary delete success: publicId={}", publicId);
         } catch (IOException e) {
             // Do not block the DB delete on Cloudinary failure — just log and move on.
@@ -169,6 +200,44 @@ public class CloudinaryService {
                 .secure(true)
                 .type("upload")
                 .generate(publicId + "?expires_at=" + expiresAt);
+    }
+
+    /**
+     * Generates a signed URL for an asset uploaded with {@code type=authenticated}.
+     * <p>
+     * On Cloudinary's free tier signed URLs do <em>not</em> have a built-in
+     * expiry — true time-bound URLs require the paid Auth Token add-on. What
+     * we do gain is that the DB no longer stores a publicly-enumerable URL:
+     * the signed URL is minted server-side per request, only after the
+     * {@link com.familycare.service.ReportService} access check passes. So
+     * the leak surface shrinks from "anyone with the URL forever" to "anyone
+     * the user has actually shared a fresh URL with."
+     */
+    public String generateSignedAuthenticatedUrl(String publicId, String resourceType) {
+        return cloudinary.url()
+                .resourceType(resourceType == null ? "image" : resourceType)
+                .type("authenticated")
+                .signed(true)
+                .secure(true)
+                .generate(publicId);
+    }
+
+    /**
+     * Generates a signed thumbnail URL (400x400 fill) for an authenticated
+     * image asset. Returns null for non-image resource types — callers should
+     * use {@link #generateSignedAuthenticatedUrl} for the original instead.
+     */
+    public String generateSignedAuthenticatedThumbnailUrl(String publicId, String resourceType) {
+        if (!"image".equalsIgnoreCase(resourceType)) return null;
+        return cloudinary.url()
+                .resourceType("image")
+                .type("authenticated")
+                .signed(true)
+                .secure(true)
+                .transformation(new com.cloudinary.Transformation<>()
+                        .width(400).height(400).crop("fill")
+                        .quality("auto").fetchFormat("auto"))
+                .generate(publicId);
     }
 
     private boolean isImage(MultipartFile file) {

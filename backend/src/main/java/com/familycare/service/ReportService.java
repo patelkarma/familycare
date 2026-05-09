@@ -57,7 +57,10 @@ public class ReportService {
         }
 
         String folder = "familycare/reports/" + member.getId();
-        CloudinaryService.UploadResult uploaded = cloudinaryService.upload(file, folder);
+        // Medical reports are sensitive — upload as authenticated so URLs
+        // require a server-minted signature (no more publicly-enumerable
+        // Cloudinary URLs in the DB).
+        CloudinaryService.UploadResult uploaded = cloudinaryService.upload(file, folder, true);
 
         String fileType = detectFileType(file.getOriginalFilename(), file.getContentType(), uploaded.format);
 
@@ -66,6 +69,8 @@ public class ReportService {
                 .uploadedBy(user)
                 .title(request.getTitle())
                 .reportType(request.getReportType().toUpperCase())
+                // fileUrl/thumbnailUrl are kept blank for private uploads —
+                // toResponse() generates fresh signed URLs on every read.
                 .fileUrl(uploaded.secureUrl)
                 .cloudinaryPublicId(uploaded.publicId)
                 .cloudinaryResourceType(uploaded.resourceType)
@@ -79,6 +84,7 @@ public class ReportService {
                 .notes(request.getNotes())
                 .tags(request.getTags())
                 .isPinnedForEmergency(false)
+                .privateAccess(true)
                 .linkedAppointment(appointment)
                 .build();
 
@@ -152,12 +158,13 @@ public class ReportService {
 
         String publicId = report.getCloudinaryPublicId();
         String resourceType = report.getCloudinaryResourceType();
+        boolean privateAccess = Boolean.TRUE.equals(report.getPrivateAccess());
 
         reportRepository.delete(report);
         log.info("Report DB row deleted: {}", reportId);
 
         // Best-effort cloudinary cleanup after DB commit
-        cloudinaryService.delete(publicId, resourceType);
+        cloudinaryService.delete(publicId, resourceType, privateAccess);
     }
 
     @Transactional
@@ -197,14 +204,20 @@ public class ReportService {
         MedicalReport report = findReportOrThrow(reportId);
         resolveMember(report.getFamilyMember().getId(), user);
 
-        // Cloudinary's default delivery URL is already publicly addressable once uploaded.
-        // For the Smart Locker v1 we return the secure_url with a readable expiry metadata
-        // so the frontend can show "valid for 7 days". True signed expiry requires
-        // private-type uploads which we are not doing yet — documented trade-off.
+        // For private (authenticated) uploads we mint a signed URL — Cloudinary
+        // rejects unsigned access. For legacy public uploads we hand back the
+        // stored secure_url. The 7-day "expiresAt" is a hint for the UI; on
+        // free-tier Cloudinary the signature itself doesn't carry an expiry,
+        // so the URL stays valid until you regenerate it. Documented honestly.
         long expiresAtEpoch = (System.currentTimeMillis() / 1000L) + SHARE_URL_EXPIRY_SECONDS;
+        String url = Boolean.TRUE.equals(report.getPrivateAccess())
+                ? cloudinaryService.generateSignedAuthenticatedUrl(
+                        report.getCloudinaryPublicId(),
+                        report.getCloudinaryResourceType())
+                : report.getFileUrl();
 
         Map<String, Object> result = new HashMap<>();
-        result.put("url", report.getFileUrl());
+        result.put("url", url);
         result.put("expiresAt", expiresAtEpoch);
         result.put("title", report.getTitle());
         result.put("memberName", report.getFamilyMember().getName());
@@ -294,14 +307,28 @@ public class ReportService {
             aptLabel = (doctor + " — " + date).trim();
         }
 
+        // For privateAccess=true reports we generate fresh signed URLs on
+        // every read — the DB-stored fileUrl is a stale secure_url that
+        // wouldn't authenticate against Cloudinary's authenticated delivery.
+        // Legacy reports (privateAccess=false) keep using the stored URL.
+        boolean isPrivate = Boolean.TRUE.equals(r.getPrivateAccess());
+        String fileUrl = isPrivate
+                ? cloudinaryService.generateSignedAuthenticatedUrl(
+                        r.getCloudinaryPublicId(), r.getCloudinaryResourceType())
+                : r.getFileUrl();
+        String thumbnailUrl = isPrivate
+                ? cloudinaryService.generateSignedAuthenticatedThumbnailUrl(
+                        r.getCloudinaryPublicId(), r.getCloudinaryResourceType())
+                : r.getThumbnailUrl();
+
         return ReportResponse.builder()
                 .id(r.getId())
                 .familyMemberId(r.getFamilyMember().getId())
                 .familyMemberName(r.getFamilyMember().getName())
                 .title(r.getTitle())
                 .reportType(r.getReportType())
-                .fileUrl(r.getFileUrl())
-                .thumbnailUrl(r.getThumbnailUrl())
+                .fileUrl(fileUrl)
+                .thumbnailUrl(thumbnailUrl)
                 .fileType(r.getFileType())
                 .fileSizeBytes(r.getFileSizeBytes())
                 .doctorName(r.getDoctorName())

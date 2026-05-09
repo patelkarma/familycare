@@ -78,7 +78,13 @@
       "missedDose_other": "{{count}} doses missed today",
       "lowStock_one": "{{medicineName}} for {{memberName}} — {{count}} dose left",
       "lowStock_other": "{{medicineName}} for {{memberName}} — {{count}} doses left",
-      "appointmentSoon": "{{doctorLabel}} for {{memberName}} on {{when}}"
+      "appointmentSoon": "{{doctorLabel}} for {{memberName}} on {{when}}",
+      "whatsappDormant": {
+        "title": "WhatsApp reminders may not be reaching you",
+        "bodyHours": "We haven't seen a successful reminder in {{hours}}h. Re-join WhatsApp to keep getting notifications.",
+        "bodyNever": "No reminders have been delivered yet. Re-join WhatsApp to start getting notifications.",
+        "cta": "Re-join now"
+      }
     }
   },
   "profile": {

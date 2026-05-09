@@ -78,7 +78,13 @@
       "missedDose_other": "ਅੱਜ {{count}} ਖੁਰਾਕਾਂ ਖੁੰਝੀਆਂ",
       "lowStock_one": "{{memberName}} ਲਈ {{medicineName}} — ਸਿਰਫ਼ {{count}} ਖੁਰਾਕ ਬਚੀ",
       "lowStock_other": "{{memberName}} ਲਈ {{medicineName}} — ਸਿਰਫ਼ {{count}} ਖੁਰਾਕਾਂ ਬਚੀਆਂ",
-      "appointmentSoon": "{{when}} ਨੂੰ {{memberName}} ਲਈ {{doctorLabel}}"
+      "appointmentSoon": "{{when}} ਨੂੰ {{memberName}} ਲਈ {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp ਰਿਮਾਈਂਡਰ ਤੁਹਾਡੇ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਰਹੇ",
+        "bodyHours": "ਪਿਛਲੇ {{hours}} ਘੰਟਿਆਂ ਵਿੱਚ ਕੋਈ ਰਿਮਾਈਂਡਰ ਨਹੀਂ ਪਹੁੰਚਿਆ। ਨੋਟੀਫਿਕੇਸ਼ਨ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ WhatsApp ਨਾਲ ਦੁਬਾਰਾ ਜੁੜੋ।",
+        "bodyNever": "ਅਜੇ ਤੱਕ ਕੋਈ ਰਿਮਾਈਂਡਰ ਨਹੀਂ ਭੇਜਿਆ ਗਿਆ। ਨੋਟੀਫਿਕੇਸ਼ਨ ਸ਼ੁਰੂ ਕਰਨ ਲਈ WhatsApp ਨਾਲ ਦੁਬਾਰਾ ਜੁੜੋ।",
+        "cta": "ਦੁਬਾਰਾ ਜੁੜੋ"
+      }
     }
   },
   "profile": {

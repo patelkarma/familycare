@@ -78,7 +78,13 @@
       "missedDose_other": "இன்று {{count}} மருந்துகள் தவறவிட்டன",
       "lowStock_one": "{{memberName}} க்கான {{medicineName}} — {{count}} மருந்து மட்டும் மீதம்",
       "lowStock_other": "{{memberName}} க்கான {{medicineName}} — {{count}} மருந்துகள் மீதம்",
-      "appointmentSoon": "{{when}} அன்று {{memberName}} க்கான {{doctorLabel}}"
+      "appointmentSoon": "{{when}} அன்று {{memberName}} க்கான {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp நினைவூட்டல்கள் உங்களுக்கு வருவதில்லை",
+        "bodyHours": "கடந்த {{hours}} மணி நேரத்தில் எந்த நினைவூட்டலும் வந்ததில்லை. அறிவிப்புகளைப் பெற WhatsApp-ல் மீண்டும் சேரவும்.",
+        "bodyNever": "இதுவரை எந்த நினைவூட்டலும் அனுப்பப்படவில்லை. அறிவிப்புகளைத் தொடங்க WhatsApp-ல் மீண்டும் சேரவும்.",
+        "cta": "மீண்டும் சேரவும்"
+      }
     }
   },
   "profile": {

@@ -78,7 +78,13 @@
       "missedDose_other": "आज {{count}} डोस चुकले",
       "lowStock_one": "{{memberName}} साठी {{medicineName}} — फक्त {{count}} डोस उरला",
       "lowStock_other": "{{memberName}} साठी {{medicineName}} — फक्त {{count}} डोस उरले",
-      "appointmentSoon": "{{when}} रोजी {{memberName}} साठी {{doctorLabel}}"
+      "appointmentSoon": "{{when}} रोजी {{memberName}} साठी {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp रिमाइंडर तुम्हाला पोहोचत नाहीत",
+        "bodyHours": "मागील {{hours}} तासांपासून कोणताही रिमाइंडर पोहोचलेला नाही. नोटिफिकेशन सुरू ठेवण्यासाठी WhatsApp पुन्हा जोडा.",
+        "bodyNever": "अद्याप कोणताही रिमाइंडर पोहोचलेला नाही. नोटिफिकेशन सुरू करण्यासाठी WhatsApp पुन्हा जोडा.",
+        "cta": "पुन्हा जोडा"
+      }
     }
   },
   "profile": {

@@ -76,6 +76,16 @@ public class MedicalReport {
     @Builder.Default
     private Boolean isPinnedForEmergency = false;
 
+    /**
+     * True when the underlying Cloudinary asset was uploaded with
+     * {@code type=authenticated} and must be accessed via short-lived signed
+     * URLs. Legacy rows uploaded before this flag existed are {@code false} —
+     * for those we fall back to the stored public {@link #fileUrl}.
+     */
+    @Column(name = "private_access", nullable = false)
+    @Builder.Default
+    private Boolean privateAccess = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_appointment_id")
     private Appointment linkedAppointment;
@@ -92,6 +102,7 @@ public class MedicalReport {
         createdAt = now;
         updatedAt = now;
         if (isPinnedForEmergency == null) isPinnedForEmergency = false;
+        if (privateAccess == null) privateAccess = false;
     }
 
     @PreUpdate

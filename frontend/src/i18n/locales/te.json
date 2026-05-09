@@ -78,7 +78,13 @@
       "missedDose_other": "ఈరోజు {{count}} మోతాదులు తప్పిపోయాయి",
       "lowStock_one": "{{memberName}} కోసం {{medicineName}} — {{count}} మోతాదు మాత్రమే మిగిలి",
       "lowStock_other": "{{memberName}} కోసం {{medicineName}} — {{count}} మోతాదులు మాత్రమే మిగిలి",
-      "appointmentSoon": "{{when}} న {{memberName}} కోసం {{doctorLabel}}"
+      "appointmentSoon": "{{when}} న {{memberName}} కోసం {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp రిమైండర్‌లు మీకు చేరడం లేదు",
+        "bodyHours": "గత {{hours}} గంటలలో ఏ రిమైండర్ పంపబడలేదు. నోటిఫికేషన్‌లను పొందడానికి WhatsApp లో మళ్లీ చేరండి.",
+        "bodyNever": "ఇంకా ఏ రిమైండర్ పంపబడలేదు. నోటిఫికేషన్‌లను ప్రారంభించడానికి WhatsApp లో మళ్లీ చేరండి.",
+        "cta": "మళ్లీ చేరండి"
+      }
     }
   },
   "profile": {

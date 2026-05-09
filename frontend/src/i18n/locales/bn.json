@@ -78,7 +78,13 @@
       "missedDose_other": "আজ {{count}}টি ডোজ বাদ পড়েছে",
       "lowStock_one": "{{memberName}} এর জন্য {{medicineName}} — মাত্র {{count}}টি ডোজ বাকি",
       "lowStock_other": "{{memberName}} এর জন্য {{medicineName}} — মাত্র {{count}}টি ডোজ বাকি",
-      "appointmentSoon": "{{when}} এ {{memberName}} এর জন্য {{doctorLabel}}"
+      "appointmentSoon": "{{when}} এ {{memberName}} এর জন্য {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp রিমাইন্ডার আপনার কাছে পৌঁছাচ্ছে না",
+        "bodyHours": "গত {{hours}} ঘন্টায় কোনো রিমাইন্ডার পৌঁছায়নি। নোটিফিকেশন পেতে WhatsApp আবার যোগ দিন।",
+        "bodyNever": "এখনো কোনো রিমাইন্ডার পাঠানো হয়নি। নোটিফিকেশন শুরু করতে WhatsApp আবার যোগ দিন।",
+        "cta": "আবার যোগ দিন"
+      }
     }
   },
   "profile": {

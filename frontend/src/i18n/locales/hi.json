@@ -78,7 +78,13 @@
       "missedDose_other": "आज {{count}} खुराक छूट गईं",
       "lowStock_one": "{{memberName}} के लिए {{medicineName}} — केवल {{count}} खुराक बची",
       "lowStock_other": "{{memberName}} के लिए {{medicineName}} — केवल {{count}} खुराक बचीं",
-      "appointmentSoon": "{{when}} को {{memberName}} के लिए {{doctorLabel}}"
+      "appointmentSoon": "{{when}} को {{memberName}} के लिए {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp रिमाइंडर आप तक नहीं पहुँच रहे",
+        "bodyHours": "{{hours}} घंटे से कोई रिमाइंडर नहीं भेजा गया है। नोटिफिकेशन पाने के लिए WhatsApp फिर से जोड़ें।",
+        "bodyNever": "अभी तक कोई रिमाइंडर नहीं भेजा गया है। नोटिफिकेशन शुरू करने के लिए WhatsApp फिर से जोड़ें।",
+        "cta": "फिर से जोड़ें"
+      }
     }
   },
   "profile": {

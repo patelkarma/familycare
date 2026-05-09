@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Heart, Pill, Clock, Check, AlertTriangle, Sun, Cloud, Moon, FileText, Pin, ChevronRight, Calendar, PackageX, MapPin } from 'lucide-react';
+import { Users, Plus, Heart, Pill, Clock, Check, AlertTriangle, Sun, Cloud, Moon, FileText, Pin, ChevronRight, Calendar, PackageX, MapPin, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { dashboardApi } from '../api/dashboard.api';
@@ -66,7 +66,11 @@ const Dashboard = () => {
   const recentReports = summary.recentReports || [];
   const lowStockMedicines = summary.lowStockMedicines || [];
   const upcomingAppointments = summary.upcomingAppointments || [];
-  const alerts = summary.alerts || [];
+  const allAlerts = summary.alerts || [];
+  // Split out the dormant alert — it gets its own prominent banner with a
+  // re-join CTA, separate from the standard alert list.
+  const dormantAlert = allAlerts.find((a) => a.type === 'WHATSAPP_DORMANT');
+  const alerts = allAlerts.filter((a) => a.type !== 'WHATSAPP_DORMANT');
   const stats = summary.todayDoseStats || { total: 0, taken: 0, missed: 0, pending: 0, skipped: 0 };
   const totalDoses = stats.total;
   const takenCount = stats.taken;
@@ -107,6 +111,46 @@ const Dashboard = () => {
           })}
         </p>
       </motion.div>
+
+      {/* WhatsApp dormant banner — prominent, with re-join CTA. The Twilio
+          sandbox reaps participants every ~72h; this surfaces it on the
+          dashboard so users notice before missing reminders. */}
+      {dormantAlert && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/5 p-4 sm:p-5"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shrink-0">
+              <MessageCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-bold text-amber-900">
+                {t('dashboard.alerts.whatsappDormant.title', "WhatsApp reminders may not be reaching you")}
+              </h3>
+              <p className="text-xs sm:text-sm text-amber-800 mt-1 leading-relaxed">
+                {dormantAlert.params?.hoursAgo > 0
+                  ? t('dashboard.alerts.whatsappDormant.bodyHours', {
+                      hours: dormantAlert.params.hoursAgo,
+                      defaultValue: "We haven't seen a successful reminder in {{hours}}h. Re-join WhatsApp to keep getting notifications.",
+                    })
+                  : t('dashboard.alerts.whatsappDormant.bodyNever', 'No reminders have been delivered yet. Re-join WhatsApp to start getting notifications.')}
+              </p>
+              <motion.button
+                onClick={() => navigate('/profile')}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <MessageCircle className="w-4 h-4" />
+                {t('dashboard.alerts.whatsappDormant.cta', 'Re-join now')}
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Alerts banner */}
       {alerts.length > 0 && (

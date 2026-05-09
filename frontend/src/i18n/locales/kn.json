@@ -78,7 +78,13 @@
       "missedDose_other": "ಇಂದು {{count}} ಡೋಸ್‌ಗಳು ತಪ್ಪಿಸಿಕೊಂಡಿವೆ",
       "lowStock_one": "{{memberName}} ಗಾಗಿ {{medicineName}} — ಕೇವಲ {{count}} ಡೋಸ್ ಬಾಕಿ",
       "lowStock_other": "{{memberName}} ಗಾಗಿ {{medicineName}} — ಕೇವಲ {{count}} ಡೋಸ್‌ಗಳು ಬಾಕಿ",
-      "appointmentSoon": "{{when}} ರಂದು {{memberName}} ಗಾಗಿ {{doctorLabel}}"
+      "appointmentSoon": "{{when}} ರಂದು {{memberName}} ಗಾಗಿ {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp ರಿಮೈಂಡರ್‌ಗಳು ನಿಮಗೆ ತಲುಪುತ್ತಿಲ್ಲ",
+        "bodyHours": "ಕಳೆದ {{hours}} ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ರಿಮೈಂಡರ್ ತಲುಪಿಲ್ಲ. ಅಧಿಸೂಚನೆಗಳನ್ನು ಪಡೆಯಲು WhatsApp ಗೆ ಮತ್ತೆ ಸೇರಿ.",
+        "bodyNever": "ಇನ್ನೂ ಯಾವುದೇ ರಿಮೈಂಡರ್ ಕಳುಹಿಸಿಲ್ಲ. ಅಧಿಸೂಚನೆಗಳನ್ನು ಆರಂಭಿಸಲು WhatsApp ಗೆ ಮತ್ತೆ ಸೇರಿ.",
+        "cta": "ಮತ್ತೆ ಸೇರಿ"
+      }
     }
   },
   "profile": {

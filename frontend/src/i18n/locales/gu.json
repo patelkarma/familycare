@@ -78,7 +78,13 @@
       "missedDose_other": "આજે {{count}} ડોઝ ચૂકી ગયા",
       "lowStock_one": "{{memberName}} માટે {{medicineName}} — માત્ર {{count}} ડોઝ બાકી",
       "lowStock_other": "{{memberName}} માટે {{medicineName}} — માત્ર {{count}} ડોઝ બાકી",
-      "appointmentSoon": "{{when}} ના રોજ {{memberName}} માટે {{doctorLabel}}"
+      "appointmentSoon": "{{when}} ના રોજ {{memberName}} માટે {{doctorLabel}}",
+      "whatsappDormant": {
+        "title": "WhatsApp રિમાઇન્ડર તમારા સુધી પહોંચતા નથી",
+        "bodyHours": "છેલ્લા {{hours}} કલાકથી કોઈ રિમાઇન્ડર પહોંચ્યું નથી. નોટિફિકેશન ચાલુ રાખવા WhatsApp ફરીથી જોડો.",
+        "bodyNever": "હજુ સુધી કોઈ રિમાઇન્ડર પહોંચાડ્યું નથી. નોટિફિકેશન શરૂ કરવા WhatsApp ફરીથી જોડો.",
+        "cta": "ફરીથી જોડો"
+      }
     }
   },
   "profile": {

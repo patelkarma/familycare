@@ -9,6 +9,7 @@ import com.familycare.model.User;
 import com.familycare.repository.AppointmentRepository;
 import com.familycare.repository.FamilyMemberRepository;
 import com.familycare.repository.MedicineRepository;
+import com.familycare.repository.ReminderLogRepository;
 import com.familycare.repository.UserRepository;
 import com.familycare.repository.VitalsRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,12 +42,17 @@ public class DashboardService {
     private static final Duration CACHE_TTL = Duration.ofSeconds(60);
     private static final int RECENT_REPORTS_LIMIT = 6;
     private static final int UPCOMING_APPOINTMENTS_DAYS = 14;
+    // Reminder cron fires every minute, so any active user should see at least
+    // one SENT row per day. 26h gives a 2h grace window for timezone edges and
+    // the morning slot. Below this we treat WhatsApp as dormant.
+    private static final long DORMANT_HOURS = 26L;
 
     private final UserRepository userRepository;
     private final FamilyMemberRepository familyMemberRepository;
     private final MedicineRepository medicineRepository;
     private final AppointmentRepository appointmentRepository;
     private final VitalsRepository vitalsRepository;
+    private final ReminderLogRepository reminderLogRepository;
     private final ScheduleService scheduleService;
     private final ReportService reportService;
     private final FamilyService familyService;
@@ -120,7 +127,8 @@ public class DashboardService {
                 : List.of();
 
         List<DashboardSummaryResponse.DashboardAlert> alerts = buildAlerts(
-                stats, lowStock, upcoming, familySchedules);
+                stats, lowStock, upcoming, familySchedules,
+                user.getId(), activeMedicineIds);
 
         return DashboardSummaryResponse.builder()
                 .date(today)
@@ -229,8 +237,33 @@ public class DashboardService {
             DashboardSummaryResponse.DoseStats stats,
             List<DashboardSummaryResponse.LowStockMedicine> lowStock,
             List<AppointmentResponse> upcoming,
-            List<DailyScheduleResponse> schedules) {
+            List<DailyScheduleResponse> schedules,
+            UUID userId,
+            Set<UUID> activeMedicineIds) {
         List<DashboardSummaryResponse.DashboardAlert> alerts = new ArrayList<>();
+
+        // WhatsApp dormancy check — leads the alert list because if reminders
+        // aren't reaching the user, the rest of the alerts mean nothing.
+        if (!activeMedicineIds.isEmpty()) {
+            Optional<LocalDateTime> latest = reminderLogRepository.findLatestSentForUser(userId);
+            LocalDateTime now = LocalDateTime.now();
+            boolean dormant = latest.isEmpty()
+                    || latest.get().isBefore(now.minusHours(DORMANT_HOURS));
+            if (dormant) {
+                long hoursAgo = latest.map(t -> Duration.between(t, now).toHours()).orElse(-1L);
+                Map<String, Object> params = new HashMap<>();
+                params.put("hoursAgo", hoursAgo);
+                alerts.add(DashboardSummaryResponse.DashboardAlert.builder()
+                        .type("WHATSAPP_DORMANT")
+                        .severity("WARNING")
+                        .messageKey("whatsappDormant")
+                        .params(params)
+                        .message(latest.isPresent()
+                                ? "WhatsApp reminders haven't been delivered in " + hoursAgo + "h. Re-join the sandbox."
+                                : "WhatsApp reminders haven't been delivered yet. Re-join the sandbox.")
+                        .build());
+            }
+        }
 
         if (stats.getMissed() > 0) {
             int count = stats.getMissed();
