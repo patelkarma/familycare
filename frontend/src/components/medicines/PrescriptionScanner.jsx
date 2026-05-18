@@ -151,7 +151,15 @@ const PrescriptionScanner = ({ memberId, memberName, onClose }) => {
       return medicinesApi.bulkAdd(memberId, payload);
     },
     onSuccess: ({ added, failed }) => {
+      // Invalidate every cache that reads from this member's medicines so the
+      // new rows pick up dose-status slots (PENDING/MISSED) immediately —
+      // without this the scanner-added meds render without Taken/Skipped/Resend
+      // buttons until the 60s refetch fires.
       queryClient.invalidateQueries({ queryKey: ['medicines', memberId] });
+      queryClient.invalidateQueries({ queryKey: ['memberSchedule', memberId] });
+      queryClient.invalidateQueries({ queryKey: ['familyOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       if (added > 0) {
         toast.success(`Added ${added} medicine${added > 1 ? 's' : ''}${failed ? ` (${failed} failed)` : ''}`);
         setStage(STAGES.DONE);

@@ -129,7 +129,15 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
         : medicinesApi.add(payload);
     },
     onSuccess: () => {
+      // Mirror MedicineCard's invalidateAll — without invalidating the
+      // schedule queries, a newly-added med shows up in the list but has no
+      // dose-status slot until the 60s refetch fires, so Taken/Skipped/Resend
+      // buttons are missing.
       queryClient.invalidateQueries({ queryKey: ['medicines', memberId] });
+      queryClient.invalidateQueries({ queryKey: ['memberSchedule', memberId] });
+      queryClient.invalidateQueries({ queryKey: ['familyOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['mySchedule'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
       toast.success(t('toast.medicineSaved'));
       onClose();
     },
