@@ -81,8 +81,14 @@ public class MedicalReport {
      * {@code type=authenticated} and must be accessed via short-lived signed
      * URLs. Legacy rows uploaded before this flag existed are {@code false} —
      * for those we fall back to the stored public {@link #fileUrl}.
+     * <p>
+     * Nullable at the DB level so Hibernate's {@code ddl-auto=update} can add
+     * the column to an existing populated {@code medical_reports} table — a
+     * Postgres ALTER TABLE for a NOT NULL column without a DEFAULT fails on
+     * tables with rows. Callers must treat NULL the same as false (use
+     * {@code Boolean.TRUE.equals(...)}).
      */
-    @Column(name = "private_access", nullable = false)
+    @Column(name = "private_access")
     @Builder.Default
     private Boolean privateAccess = false;
 

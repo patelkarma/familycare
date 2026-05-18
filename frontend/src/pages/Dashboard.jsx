@@ -52,12 +52,13 @@ const Dashboard = () => {
     : i18n.resolvedLanguage === 'pa' ? 'pa-IN'
     : 'en-IN';
 
-  const { data: summaryData, isLoading } = useQuery({
+  const { data: summaryData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: () => dashboardApi.getSummary(),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   const summary = summaryData?.data || {};
@@ -87,6 +88,38 @@ const Dashboard = () => {
         </div>
         <SkeletonStatGrid count={4} />
         <SkeletonList count={3} rows={3} />
+      </div>
+    );
+  }
+
+  if (isError) {
+    const status = error?.response?.status;
+    const serverMsg = error?.response?.data?.message;
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+            {greeting}, {user?.name?.split(' ')[0]}
+          </h1>
+        </div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-900">Couldn't load your dashboard</h3>
+              <p className="text-sm text-red-700 mt-1">
+                {serverMsg || error?.message || 'The server returned an error.'}
+                {status ? ` (HTTP ${status})` : ''}
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
