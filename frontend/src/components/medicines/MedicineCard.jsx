@@ -410,12 +410,17 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
                   )}
                 </div>
 
-                {/* Action buttons for PENDING or MISSED:
+                {/* Action buttons for PENDING / MISSED / no-slot:
                     - Mark Taken (primary, in case the elder forgot to reply)
                     - Skip (secondary)
                     - Resend reminder (existing path)
+                    The undefined-status case covers meds whose schedule slot
+                    wasn't returned by the schedule endpoint (e.g. the prescription
+                    scanner saved an endDate in the past from the OCR'd duration).
+                    Hiding the buttons there left users unable to log doses for
+                    medicines they're still taking.
                   */}
-                {(status === 'PENDING' || status === 'MISSED') && (
+                {status !== 'TAKEN' && status !== 'SKIPPED' && (
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                     <motion.button
                       onClick={() => {
