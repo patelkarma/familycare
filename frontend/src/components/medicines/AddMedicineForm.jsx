@@ -158,6 +158,16 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
 
   const onSubmit = (data) => mutation.mutate(data);
 
+  // Block implicit form submission: pressing Enter inside an input (most
+  // notably when committing a value in a native <input type="date">) would
+  // otherwise trigger the Save button, closing the form before the user is
+  // done. Multi-line notes still need Enter, so textareas are exempt.
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+    }
+  };
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -217,7 +227,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
         </div>
 
         {/* Form content */}
-        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
+        <form onSubmit={handleSubmit(onSubmit)} onKeyDown={handleKeyDown} className="flex-1 overflow-y-auto">
           <div className="p-6 min-h-[320px]">
             <AnimatePresence mode="wait" custom={direction}>
               {/* Step 1: Medicine info */}
