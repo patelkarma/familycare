@@ -21,7 +21,6 @@ Her elderly mother gets WhatsApp reminders on her existing phone. **No app. No l
 [![CI](https://img.shields.io/github/actions/workflow/status/patelkarma/familycare/ci.yml?branch=main&label=CI&style=flat-square&logo=githubactions&logoColor=white)](https://github.com/patelkarma/familycare/actions)
 [![Tests](https://img.shields.io/badge/tests-101_backend_+_27_frontend-22c55e?style=flat-square&logo=junit5&logoColor=white)](https://github.com/patelkarma/familycare/actions)
 [![Deploy](https://img.shields.io/badge/deploy-test--gated_webhook-22c55e?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/patelkarma/familycare/blob/main/.github/workflows/ci.yml)
-[![Uptime](https://img.shields.io/badge/uptime-UptimeRobot-22c55e?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
 [![Metrics](https://img.shields.io/badge/metrics-Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white)](https://familycare.onrender.com/actuator/prometheus)
 [![Resilience](https://img.shields.io/badge/resilience-Resilience4j-2eaadc?style=flat-square)](https://resilience4j.readme.io/)
 ![Java](https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white)
@@ -45,7 +44,7 @@ In India, ~138 million people are aged 60+. The people *managing* their daily he
 
 FamilyCare flips it: the **dashboard is for the caregiver**. The reminders go to **WhatsApp** on the parent's basic phone. Reply *"ok"*, *"haan"*, or *"✅"* and the dose is marked taken. Zero install on the device that matters most.
 
-> ⚡ **No cold-start wait.** Render's free tier sleeps after 15 min idle. UptimeRobot pings `/api/health` every 5 min so the dyno stays warm — the live demo opens instantly. Reasoning in [ADR-003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts).
+> ⏳ **First load may take ~30s.** Render's free tier sleeps after 15 min idle, so the first request after a lull wakes the backend before responding. Subsequent requests are instant. A paid always-on dyno removes this, but a portfolio demo doesn't justify the cost — reasoning in [ADR-003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts).
 
 ---
 
@@ -203,7 +202,7 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 |---|---|---|
 | [001](docs/DECISIONS.md#adr-001-one-spring-boot-monolith) | One Spring Boot monolith | One engineer × 30 days has a *delivery* problem, not a scaling problem |
 | [002](docs/DECISIONS.md#adr-002-jwt-in-localstorage-not-httponly-cookies) | JWT in `localStorage`, not cookies | Cross-origin CORS stays simple; mobile path is identical; XSS risk explicitly mitigated |
-| [003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts) | Render free tier despite cold starts | UptimeRobot ping + warning banner beats $7/mo for a portfolio project |
+| [003](docs/DECISIONS.md#adr-003-render-free-tier-despite-cold-starts) | Render free tier despite cold starts | Accepting a ~30s cold start beats $7/mo for a portfolio project |
 | [004](docs/DECISIONS.md#adr-004-regex-based-prescription-parser-not-an-llm) | Regex parser, not an LLM | Deterministic, free, *fails visibly*; LLM parser hallucinates with confidence |
 | [005](docs/DECISIONS.md#adr-005-whatsapp-only-reminders-no-sms-fallback-yet) | WhatsApp-only, not WhatsApp + SMS | Ship one channel that works over two half-wired ones |
 | [006](docs/DECISIONS.md#adr-006-resilience4j-circuit-breaker-around-twilio--gemini) | Resilience4j around Twilio + Gemini | Per-provider breaker; private vs public method gotcha; `BadRequestException` excluded from retries |
@@ -250,7 +249,6 @@ Diagnosed live via screenshot: the SOS message rendered `*Meena Patel * needs im
 | **Tests** | JUnit 5 + Mockito + AssertJ + **Testcontainers** for Postgres + Redis · Vitest + Testing Library | Real DB integration tests in CI; not H2 fakes |
 | **CI/CD** | GitHub Actions · webhook-gated deploys to Render + Vercel | Tests pass → CI calls deploy hooks. Tests fail → live site stays on the last good build. Auto-deploy disabled on both platforms; CI is the only path to prod. |
 | **Hosting** | Vercel (FE) · Render (BE) · Supabase (Postgres) · Upstash (Redis) · Cloudinary (files) | All free tier — zero-cost demo story |
-| **Uptime** | UptimeRobot pinging `/api/health` every 5 min | Keeps the Render free tier warm; first-request latency stays low |
 
 ---
 
@@ -463,9 +461,9 @@ If a Twilio outage took out the reminder pipeline, I'd know within minutes — `
 
 Wired in `WhatsAppService`, `SosService`, `ReminderScheduler`, `WhatsAppBotService`, `PrescriptionParser`, and `RateLimitService` constructors via `MeterRegistry`. Locked in by [`ActuatorPrometheusIntegrationTest`](backend/src/test/java/com/familycare/ActuatorPrometheusIntegrationTest.java) so a recruiter cloning the repo can prove the wiring is real, not aspirational — the test asserts every counter name appears in the scrape body.
 
-### Liveness — UptimeRobot
+### Liveness — health endpoint
 
-External synthetic monitor pings `/actuator/health` every 5 minutes. Two jobs: detect outages before users do (email lands in inbox the second the endpoint flips to DOWN), and keep the Render free tier dyno warm so the live demo opens instantly. The endpoint is curated so Redis / Twilio failures degrade specific health groups instead of dragging overall status to DOWN.
+`/actuator/health` is curated so Redis / Twilio failures degrade specific health groups instead of dragging the overall status to DOWN — letting a monitor distinguish "a dependency is flaky" from "the app is down." A paid always-on dyno or an external uptime monitor could ping it to avoid the free-tier cold start, but neither is wired up for this portfolio build.
 
 ---
 

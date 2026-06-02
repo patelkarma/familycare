@@ -133,16 +133,17 @@ Short notes on choices that aren't obvious from the code, written when the decis
 
 **Context.** Render's free tier sleeps after 15 minutes of inactivity. The first request after sleep takes 30+ seconds. Demo days are not 30-second-tolerant.
 
-**Decision.** Stay on free tier. Mitigate, don't pay.
+**Decision.** Stay on free tier and accept the cold start.
 
-**Mitigations (in place).**
-- `/api/health` is unauthenticated and trivially cheap, so it can be pinged externally without exposing anything.
-- An **UptimeRobot monitor pings `/api/health` every 5 minutes**, well under Render's 15-minute sleep threshold. Free tier, no code in repo, ~2-min one-time setup.
-- The README explicitly warns about the cold-start window so a recruiter clicking the live link at the rare moment UptimeRobot misses doesn't read the latency as a broken site.
+**What's in place.**
+- `/actuator/health` is curated so a flaky dependency (Redis / Twilio) degrades a specific health group instead of dragging overall status to DOWN — so a monitor could tell "dependency flaky" from "app down."
+- The README explicitly warns about the ~30s cold-start window so a recruiter clicking the live link doesn't read the first-request latency as a broken site.
+
+**On keeping the dyno warm.** An external uptime monitor pinging the health endpoint every few minutes can keep the dyno awake, but a free monitor's request volume counts against Render's free-tier limits and risked exhausting them — so no monitor is wired up. The cold start is left as an honest, documented tradeoff rather than masked by a mitigation that isn't reliably running.
 
 **Why not pay.** This is a portfolio project. The day a real user complains about latency, $7/mo on Render's starter tier removes the issue entirely. Until then, the constraint is a demo problem, not a product problem.
 
-**Future work.** A "Waking up the server…" UI state in the frontend that surfaces during the >3s cold-start window — currently the request just hangs silently if UptimeRobot has missed a ping. Small frontend task; not a blocker.
+**Future work.** A "Waking up the server…" UI state in the frontend that surfaces during the >3s cold-start window — currently the request just hangs silently. Small frontend task; not a blocker.
 
 ---
 
