@@ -394,7 +394,33 @@ public class MedicineService {
             throw new CustomExceptions.BadRequestException("Failed to send WhatsApp reminder. Please try again.");
         }
 
+        // Ensure a PENDING dose-log exists for today's slot. The per-minute scheduler
+        // normally creates this when a dose fires, but a manual Resend bypasses the
+        // scheduler — so without this, the member's "TAKEN"/"SKIPPED" WhatsApp reply
+        // would find nothing to mark and hit "no pending dose found".
+        ensurePendingLog(medicine, doseTiming);
+
         return "Reminder resent to " + member.getName() + " via WhatsApp";
+    }
+
+    /**
+     * Get-or-create a PENDING MedicineLog for today's {@code doseTiming} slot, mirroring
+     * what {@code ReminderScheduler} does when a scheduled dose fires. Idempotent: if a log
+     * already exists for the slot today (in any status), it is left untouched so an existing
+     * TAKEN/SKIPPED/MISSED record is never silently reset.
+     */
+    private void ensurePendingLog(Medicine medicine, String doseTiming) {
+        String slot = doseTiming.toUpperCase();
+        if (findExistingLog(medicine.getId(), slot).isPresent()) return;
+
+        MedicineLog pendingLog = MedicineLog.builder()
+                .medicine(medicine)
+                .familyMember(medicine.getFamilyMember())
+                .scheduledTime(LocalDateTime.now())
+                .status("PENDING")
+                .doseTiming(slot)
+                .build();
+        medicineLogRepository.save(pendingLog);
     }
 
     // --- Private helpers ---
