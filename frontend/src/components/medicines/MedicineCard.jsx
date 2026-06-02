@@ -138,6 +138,24 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
   else if (timing.afternoon && currentHour < 17) nextDose = 'afternoon';
   else if (timing.night) nextDose = 'night';
 
+  // Weekly meds (e.g. a Tuesday vitamin) only have doses on their scheduled
+  // day-of-week. Mirror the backend (ScheduleService.appliesOn): resolve the
+  // anchor from weeklyDay, falling back to the start date's day-of-week. On
+  // off days we hide the actionable dose rows so the card doesn't invite the
+  // user to log/skip a dose that isn't due. Parse the ISO date by parts to
+  // avoid the UTC-midnight timezone shift of new Date('YYYY-MM-DD').
+  const DOW = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  const isWeekly = (medicine.frequency || '').toLowerCase().includes('weekly');
+  let weeklyAnchor = medicine.weeklyDay || null;
+  if (isWeekly && !weeklyAnchor && medicine.startDate) {
+    const [y, m, d] = medicine.startDate.split('-').map(Number);
+    weeklyAnchor = DOW[new Date(y, m - 1, d).getDay()];
+  }
+  const scheduledToday = !isWeekly || !weeklyAnchor || weeklyAnchor === DOW[now.getDay()];
+  const weeklyDayLabel = weeklyAnchor
+    ? weeklyAnchor.charAt(0) + weeklyAnchor.slice(1).toLowerCase()
+    : null;
+
   return (
     <motion.div
       className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-50 hover:border-primary-light transition-colors relative overflow-hidden"
@@ -190,7 +208,7 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
               const config = timingConfig[key];
               if (!config) return null;
               const Icon = config.icon;
-              const isNext = key === nextDose;
+              const isNext = scheduledToday && key === nextDose;
               const slotData = doseStatuses[key];
               const status = slotData?.status;
 
@@ -347,8 +365,16 @@ const MedicineCard = ({ medicine, onEdit, onDelete, memberId, doseStatuses = {} 
         )}
       </div>
 
+      {/* Weekly med on an off day: no dose due today, point to the next one */}
+      {activeTimings.length > 0 && !scheduledToday && (
+        <div className="rounded-xl bg-primary-light/40 px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
+          <Clock className="w-4 h-4 text-primary shrink-0" />
+          <span>Weekly medicine — next dose on <span className="font-semibold text-gray-800">{weeklyDayLabel}</span></span>
+        </div>
+      )}
+
       {/* Today's dose status timeline */}
-      {activeTimings.length > 0 && (
+      {activeTimings.length > 0 && scheduledToday && (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Today's Doses</p>
           {activeTimings.map(([key, time]) => {

@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -114,7 +115,12 @@ public class ScheduleService {
 
             if (effectiveStart.isAfter(effectiveEnd)) continue;
 
-            long days = effectiveStart.until(effectiveEnd).getDays() + 1;
+            // Weekly meds are expected only on their day-of-week, not every day —
+            // otherwise adherence over-counts expected doses ~7x and tanks the percentage.
+            DayOfWeek anchor = weeklyAnchor(medicine);
+            long days = anchor == null
+                    ? effectiveStart.until(effectiveEnd).getDays() + 1
+                    : countDayOfWeek(effectiveStart, effectiveEnd, anchor);
             totalExpected += (int) days * timingsPerDay;
         }
 
@@ -181,6 +187,11 @@ public class ScheduleService {
             if (medicine.getStartDate() != null && date.isBefore(medicine.getStartDate())) continue;
             if (medicine.getEndDate() != null && date.isAfter(medicine.getEndDate())) continue;
 
+            // Weekly meds only have a dose on their scheduled day-of-week. Without this,
+            // a "Weekly / Tuesday" vitamin showed a slot every day and got falsely marked
+            // MISSED on non-Tuesdays. Mirrors ReminderService.shouldFireToday().
+            if (!appliesOn(medicine, date)) continue;
+
             Map<String, String> timing = deserializeTiming(medicine.getTiming());
             if (timing == null || timing.isEmpty()) continue;
 
@@ -239,6 +250,43 @@ public class ScheduleService {
                 .memberAvatarUrl(FamilyService.resolveAvatar(member))
                 .slots(slots)
                 .build();
+    }
+
+    /**
+     * Resolve a weekly medicine's anchor day-of-week, or {@code null} if the med should be
+     * treated as firing every day. Non-weekly meds always return null. For weekly meds the
+     * anchor is the user-picked {@code weeklyDay}, falling back to the start date's day-of-week,
+     * and finally null (legacy rows with neither) so behavior matches ReminderService.
+     */
+    private DayOfWeek weeklyAnchor(Medicine medicine) {
+        String frequency = medicine.getFrequency();
+        if (frequency == null || !frequency.toLowerCase().contains("weekly")) return null;
+
+        String anchor = medicine.getWeeklyDay();
+        if ((anchor == null || anchor.isBlank()) && medicine.getStartDate() != null) {
+            anchor = medicine.getStartDate().getDayOfWeek().name();
+        }
+        if (anchor == null || anchor.isBlank()) return null;
+        try {
+            return DayOfWeek.valueOf(anchor.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** True if the medicine's schedule applies on {@code date}. Non-weekly meds always apply. */
+    private boolean appliesOn(Medicine medicine, LocalDate date) {
+        DayOfWeek anchor = weeklyAnchor(medicine);
+        return anchor == null || anchor == date.getDayOfWeek();
+    }
+
+    /** Count days in [start, end] (inclusive) whose day-of-week equals {@code dow}. */
+    private long countDayOfWeek(LocalDate start, LocalDate end, DayOfWeek dow) {
+        long count = 0;
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            if (d.getDayOfWeek() == dow) count++;
+        }
+        return count;
     }
 
     private Map<String, String> deserializeTiming(String timing) {
