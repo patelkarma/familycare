@@ -158,10 +158,16 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
 
   const onSubmit = (data) => mutation.mutate(data);
 
-  // Block implicit form submission: pressing Enter inside an input (most
-  // notably when committing a value in a native <input type="date">) would
-  // otherwise trigger the Save button, closing the form before the user is
-  // done. Multi-line notes still need Enter, so textareas are exempt.
+  // The form must NEVER submit through the browser's native pathway. Native
+  // <input type="date"> commits via Enter inside the browser's own picker
+  // popup — that keypress never reaches our React onKeyDown, but it still
+  // fires the form's implicit submit, closing the dialog before the user can
+  // change the date. So we swallow every native submit and only run onSubmit
+  // from an explicit click on the Save button (see footer, type="button").
+  const blockNativeSubmit = (e) => e.preventDefault();
+
+  // Belt-and-suspenders: also stop Enter from bubbling a submit, except in the
+  // notes textarea where line breaks are expected.
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
       e.preventDefault();
@@ -227,7 +233,7 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
         </div>
 
         {/* Form content */}
-        <form onSubmit={handleSubmit(onSubmit)} onKeyDown={handleKeyDown} className="flex-1 overflow-y-auto">
+        <form onSubmit={blockNativeSubmit} onKeyDown={handleKeyDown} className="flex-1 overflow-y-auto">
           <div className="p-6 min-h-[320px]">
             <AnimatePresence mode="wait" custom={direction}>
               {/* Step 1: Medicine info */}
@@ -495,7 +501,8 @@ const AddMedicineForm = ({ memberId, medicine, onClose }) => {
               </motion.button>
             ) : (
               <motion.button
-                type="submit"
+                type="button"
+                onClick={handleSubmit(onSubmit)}
                 disabled={mutation.isPending}
                 className="flex-1 flex items-center justify-center gap-2 bg-primary text-white rounded-xl px-5 py-3 font-semibold text-sm shadow-lg shadow-primary/20 hover:bg-primary-dark disabled:opacity-60"
                 whileHover={{ scale: mutation.isPending ? 1 : 1.02 }}
